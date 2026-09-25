@@ -1,0 +1,31 @@
+# 用户数据 —— 账户、持仓、成交、设置、备份、行情缓存
+# 绝对不要提交: 里面是个人的交易记录和自选股
+data/
+
+# 打包产物
+build/
+build_tools/
+build_data_rescue/
+dist/
+dist_netcheck/
+dist_probe/
+*.spec
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+env/
+
+# 研究用的大文件缓存 (可以重新抓, 不进仓库)
+*.pkl
+*.parquet
+
+# 编辑器 / 系统
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+desktop.ini

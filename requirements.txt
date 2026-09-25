@@ -1,0 +1,4 @@
+PyQt6>=6.6
+pyqtgraph>=0.13
+requests>=2.31
+tzdata

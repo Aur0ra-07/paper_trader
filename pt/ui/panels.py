@@ -4,6 +4,7 @@ from __future__ import annotations
 from PyQt6 import QtCore, QtGui, QtWidgets
 
 from . import theme
+from ..i18n import _tr
 
 RIGHT = QtCore.Qt.AlignmentFlag.AlignRight | QtCore.Qt.AlignmentFlag.AlignVCenter
 CENTER = QtCore.Qt.AlignmentFlag.AlignCenter
@@ -135,7 +136,7 @@ class EquityCurveWidget(QtWidgets.QWidget):
                                          pen=pg.mkPen(theme.TEXT_DIM, width=1,
                                                       style=QtCore.Qt.PenStyle.DashLine))
         self.plot.addItem(self.base_line)
-        self.empty = pg.TextItem("暂无净值记录 — 运行一段时间后自动生成",
+        self.empty = pg.TextItem(_tr("暂无净值记录 — 运行一段时间后自动生成"),
                                  color=theme.TEXT_DIM, anchor=(0.5, 0.5))
         self.plot.addItem(self.empty)
 

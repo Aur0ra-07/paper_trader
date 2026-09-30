@@ -24,6 +24,7 @@ from . import rotation
 from .backtest import BacktestConfig
 from .library import create
 from .rotation import RotationConfig
+from ..i18n import _tr
 
 ASSET = "asset"          # 单一标的买入持有
 STRATEGY = "strategy"    # 在某个标的上跑择时策略
@@ -44,11 +45,11 @@ class Sleeve:
 
     def describe(self) -> str:
         if self.kind == CASH:
-            return "现金"
+            return _tr("现金")
         if self.kind == ASSET:
-            return "买入持有 " + ", ".join(self.symbols[:4])
+            return _tr("买入持有 ") + ", ".join(self.symbols[:4])
         if self.kind == ROTATION:
-            return "动量轮动 ({} 只)".format(len(self.symbols))
+            return _tr("动量轮动 ({} 只)").format(len(self.symbols))
         return "{} @ {}".format(self.strategy_key, ", ".join(self.symbols[:3]))
 
 
@@ -77,7 +78,7 @@ class MixResult:
     exposure_curve: list = field(default_factory=list)    # 波动率目标下的实际仓位
     error: str = ""
     label: str = ""
-    symbol: str = "组合"
+    symbol: str = _tr("组合")
     strategy_key: str = "mix"
     strategy_label: str = ""
 
@@ -148,7 +149,7 @@ def run_mix(sleeves: list, data: dict, settings: Settings,
     res = MixResult()
     active = [s for s in sleeves if s.weight > 0]
     if not active:
-        res.error = "没有权重大于 0 的组成部分"
+        res.error = _tr("没有权重大于 0 的组成部分")
         return res
 
     curves, rets = {}, {}
@@ -158,13 +159,13 @@ def run_mix(sleeves: list, data: dict, settings: Settings,
             continue
         c = build_sleeve_curve(s, data, settings, cfg)
         if len(c) < 60:
-            res.error = "「{}」这一块没跑出足够长的净值 (只有 {} 根)".format(s.name, len(c))
+            res.error = _tr("「{}」这一块没跑出足够长的净值 (只有 {} 根)").format(s.name, len(c))
             return res
         curves[s.name] = c
         rets[s.name] = _to_returns(c)
 
     if not rets:
-        res.error = "组合里至少要有一个非现金的部分"
+        res.error = _tr("组合里至少要有一个非现金的部分")
         return res
 
     # 统一时间轴: 取所有非现金部分的交集, 保证每天都有完整数据
@@ -174,7 +175,7 @@ def run_mix(sleeves: list, data: dict, settings: Settings,
         timeline = ks if timeline is None else (timeline & ks)
     timeline = sorted(timeline or [])
     if len(timeline) < 60:
-        res.error = "各部分的历史重叠只有 {} 根 K 线, 太短了 (换更短的区间或去掉上市晚的标的)".format(
+        res.error = _tr("各部分的历史重叠只有 {} 根 K 线, 太短了 (换更短的区间或去掉上市晚的标的)").format(
             len(timeline))
         return res
 
@@ -288,7 +289,7 @@ def run_mix(sleeves: list, data: dict, settings: Settings,
             bcurve.append((ts, cfg.initial_cash * px / first))
         res.benchmark = bcurve
 
-    shim = bt.BacktestResult(symbol="组合", strategy_key="mix", strategy_label="组合")
+    shim = bt.BacktestResult(symbol=_tr("组合"), strategy_key="mix", strategy_label=_tr("组合"))
     shim.equity = res.equity
     shim.benchmark = res.benchmark
     res.metrics = bt._metrics(

@@ -12,6 +12,7 @@ from dataclasses import dataclass, field
 
 from ..config import Settings
 from .library import Strategy
+from ..i18n import _tr
 
 # 各周期一年有多少根 K 线 (年化用)
 BARS_PER_YEAR = {
@@ -35,7 +36,7 @@ class BTTrade:
     pnl_pct: float = 0.0
     costs: float = 0.0
     bars_held: int = 0
-    exit_reason: str = "信号"
+    exit_reason: str = _tr("信号")
 
     @property
     def is_win(self) -> bool:
@@ -90,7 +91,7 @@ def run(candles: list, strategy: Strategy, settings: Settings,
     n = len(candles)
     warm = max(strategy.warmup(), 1)
     if n < warm + 5:
-        res.error = "K 线只有 {} 根, 该策略至少需要 {} 根".format(n, warm + 5)
+        res.error = _tr("K 线只有 {} 根, 该策略至少需要 {} 根").format(n, warm + 5)
         return res
 
     strategy.prepare(candles)
@@ -165,7 +166,7 @@ def run(candles: list, strategy: Strategy, settings: Settings,
         # 1) 执行上一根收盘发出的信号 (本根开盘价成交)
         if pending is not None:
             if qty != 0 and (pending == FLAT or (pending > 0) != (qty > 0)):
-                close_position(i, bar.open, "信号")
+                close_position(i, bar.open, _tr("信号"))
             if pending != FLAT and qty == 0:
                 open_position(i, bar.open, pending)
             pending = None
@@ -175,14 +176,14 @@ def run(candles: list, strategy: Strategy, settings: Settings,
             sl, tp = cfg.stop_loss_pct / 100.0, cfg.take_profit_pct / 100.0
             if qty > 0:
                 if sl > 0 and bar.low <= entry_price * (1 - sl):
-                    close_position(i, entry_price * (1 - sl), "止损")
+                    close_position(i, entry_price * (1 - sl), _tr("止损"))
                 elif tp > 0 and bar.high >= entry_price * (1 + tp):
-                    close_position(i, entry_price * (1 + tp), "止盈")
+                    close_position(i, entry_price * (1 + tp), _tr("止盈"))
             else:
                 if sl > 0 and bar.high >= entry_price * (1 + sl):
-                    close_position(i, entry_price * (1 + sl), "止损")
+                    close_position(i, entry_price * (1 + sl), _tr("止损"))
                 elif tp > 0 and bar.low <= entry_price * (1 - tp):
-                    close_position(i, entry_price * (1 - tp), "止盈")
+                    close_position(i, entry_price * (1 - tp), _tr("止盈"))
 
         # 3) 融资利息 (现金为负 = 借了钱)
         if cash < 0 and settings.margin_rate_annual > 0:
@@ -197,7 +198,7 @@ def run(candles: list, strategy: Strategy, settings: Settings,
             equity_now = cash + qty * bar.close
             exposure = abs(qty * bar.close)
             if exposure > 0 and equity_now < exposure * settings.maintenance_margin:
-                close_position(i, bar.low if qty > 0 else bar.high, "强制平仓(追保)")
+                close_position(i, bar.low if qty > 0 else bar.high, _tr("强制平仓(追保)"))
                 margin_calls += 1
 
         res.equity.append((bar.ts, cash + qty * bar.close))
@@ -207,7 +208,7 @@ def run(candles: list, strategy: Strategy, settings: Settings,
             try:
                 tgt = strategy.target(i)
             except Exception as exc:
-                res.error = "策略运行出错 (第 {} 根): {}".format(i, exc)
+                res.error = _tr("策略运行出错 (第 {} 根): {}").format(i, exc)
                 return res
             cur = FLAT if qty == 0 else (LONG if qty > 0 else SHORT)
             if tgt != cur:
@@ -215,7 +216,7 @@ def run(candles: list, strategy: Strategy, settings: Settings,
 
     # 收尾: 最后一根按收盘价平掉, 让净值可比
     if qty != 0:
-        close_position(n - 1, candles[-1].close, "回测结束")
+        close_position(n - 1, candles[-1].close, _tr("回测结束"))
         res.equity[-1] = (candles[-1].ts, cash)
 
     # 基准与策略同一根起跑 (策略要等预热 + 延迟一根才能建仓), 否则 alpha 不公平
@@ -346,7 +347,7 @@ def rolling_windows(equity: list, bars: int) -> dict:
     }
 
 
-WINDOW_PRESETS = [("1 个月", 21), ("3 个月", 63), ("6 个月", 126), ("1 年", 252)]
+WINDOW_PRESETS = [(_tr("1 个月"), 21), (_tr("3 个月"), 63), (_tr("6 个月"), 126), (_tr("1 年"), 252)]
 
 
 def run_portfolio(data: dict, strategy_key: str, params: dict, settings: Settings,
@@ -360,7 +361,7 @@ def run_portfolio(data: dict, strategy_key: str, params: dict, settings: Setting
 
     symbols = [s for s, c in data.items() if c]
     if not symbols:
-        return BacktestResult("组合", strategy_key, "", error="没有可用数据"), {}
+        return BacktestResult(_tr("组合"), strategy_key, "", error=_tr("没有可用数据")), {}
 
     per_cfg = BacktestConfig(
         initial_cash=cfg.initial_cash / len(symbols),
@@ -376,8 +377,8 @@ def run_portfolio(data: dict, strategy_key: str, params: dict, settings: Setting
 
     good = [r for r in singles.values() if r.ok]
     if not good:
-        first_err = next((r.error for r in singles.values() if r.error), "全部标的回测失败")
-        return BacktestResult("组合", strategy_key, "", error=first_err), singles
+        first_err = next((r.error for r in singles.values() if r.error), _tr("全部标的回测失败"))
+        return BacktestResult(_tr("组合"), strategy_key, "", error=first_err), singles
 
     # 按时间戳并集对齐, 缺失用前值填充
     all_ts = sorted({ts for r in good for ts, _ in r.equity})
@@ -390,7 +391,7 @@ def run_portfolio(data: dict, strategy_key: str, params: dict, settings: Setting
             series.append(last)
         curves.append(series)
 
-    combo = BacktestResult("组合 ({} 只)".format(len(good)), strategy_key,
+    combo = BacktestResult(_tr("组合 ({} 只)").format(len(good)), strategy_key,
                            good[0].strategy_label, params=dict(params))
     combo.equity = [(ts, sum(c[i] for c in curves)) for i, ts in enumerate(all_ts)]
 

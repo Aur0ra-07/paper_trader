@@ -16,6 +16,7 @@ import requests
 
 from .models import OptionQuote, parse_occ
 from .pricing import CALL, PUT
+from ..i18n import _tr
 
 _UA = ("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
        "(KHTML, like Gecko) Chrome/124.0 Safari/537.36")
@@ -81,11 +82,11 @@ class YahooOptionSource(OptionDataSource):
                     self._crumb = crumb
                     self._auth_at = time.time()
                 else:
-                    raise OptionDataError("拿不到 crumb (HTTP {})".format(r.status_code))
+                    raise OptionDataError(_tr("拿不到 crumb (HTTP {})").format(r.status_code))
             except OptionDataError:
                 raise
             except Exception as exc:
-                raise OptionDataError("期权接口鉴权失败: {}".format(exc))
+                raise OptionDataError(_tr("期权接口鉴权失败: {}").format(exc))
 
     def _get_chain_raw(self, underlying: str, expiry_ts: int | None) -> dict:
         self._authenticate()
@@ -106,26 +107,26 @@ class YahooOptionSource(OptionDataSource):
                     try:
                         data = r.json()
                     except ValueError:
-                        last = "响应不是 JSON"
+                        last = _tr("响应不是 JSON")
                         continue
                     chain = data.get("optionChain") or {}
                     if chain.get("error"):
                         raise OptionDataError(
-                            (chain["error"] or {}).get("description") or "未知错误")
+                            (chain["error"] or {}).get("description") or _tr("未知错误"))
                     results = chain.get("result") or []
                     if results:
                         return results[0]
-                    raise OptionDataError("{} 没有期权链 (可能这只票没有期权)".format(underlying))
+                    raise OptionDataError(_tr("{} 没有期权链 (可能这只票没有期权)").format(underlying))
                 if r.status_code == 401:
                     self._authenticate(force=True)
                     params["crumb"] = self._crumb
-                    last = "401 鉴权失效"
+                    last = _tr("401 鉴权失效")
                 elif r.status_code == 404:
-                    raise OptionDataError("{} 没有期权".format(underlying))
+                    raise OptionDataError(_tr("{} 没有期权").format(underlying))
                 else:
                     last = "HTTP {}".format(r.status_code)
             time.sleep(1.5 * (attempt + 1))
-        raise OptionDataError("期权链请求失败: {}".format(last))
+        raise OptionDataError(_tr("期权链请求失败: {}").format(last))
 
     # ------------------------------------------------------------------
     def expirations(self, underlying: str) -> list:

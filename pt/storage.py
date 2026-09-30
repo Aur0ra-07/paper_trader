@@ -6,7 +6,8 @@ import os
 import time
 
 from .config import ACCOUNTS_DIR, DATA_DIR
-from .models import Account
+from .models import DEFAULT_ACCOUNT_NAME, Account
+from .i18n import _tr
 
 
 def _ensure_dirs() -> None:
@@ -125,7 +126,7 @@ def bootstrap(initial_cash: float) -> Account:
             save_account(acc)
             set_active_account_id(acc.id)
             return acc
-        acc = Account(name="我的模拟账户", initial_cash=initial_cash, cash=initial_cash)
+        acc = Account(name=DEFAULT_ACCOUNT_NAME, initial_cash=initial_cash, cash=initial_cash)
         acc.equity_curve.append([time.time(), initial_cash])
         save_account(acc)
         set_active_account_id(acc.id)
@@ -147,7 +148,10 @@ BACKUP_DIR = os.path.join(DATA_DIR, "backups")
 def backup_account(acc: Account, tag: str = "") -> str:
     """把账户另存一份带时间戳的快照, 返回文件路径。"""
     os.makedirs(BACKUP_DIR, exist_ok=True)
-    safe = "".join(ch for ch in acc.name if ch.isalnum() or ch in "-_")[:20] or acc.id
+    # 文件名里的可读部分用显示名 (默认账户名跟着界面语言走)。恢复时读的是
+    # 文件内容里的 id/name, 不解析文件名, 所以这里怎么起名都不影响恢复。
+    safe = "".join(ch for ch in acc.display_name if ch.isalnum() or ch in "-_ ")[:24]
+    safe = safe.strip().replace(" ", "_") or acc.id
     stamp = time.strftime("%Y%m%d-%H%M%S")
     name = "{}_{}_{}{}.json".format(safe, acc.id, stamp, "_" + tag if tag else "")
     path = os.path.join(BACKUP_DIR, name)
@@ -212,7 +216,7 @@ def list_backups() -> list:
             continue
         out.append((path, d.get("name", "?"), d.get("id", "?"),
                     os.path.getmtime(path),
-                    "现金 ${:,.0f} · 持仓 {} · 成交 {}".format(
+                    _tr("现金 ${:,.0f} · 持仓 {} · 成交 {}").format(
                         float(d.get("cash", 0)),
                         len([p for p in (d.get("positions") or {}).values() if p.get("qty")]),
                         len(d.get("trades") or []))))

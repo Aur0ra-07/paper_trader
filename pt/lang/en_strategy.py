@@ -1,0 +1,155 @@
+"""英文翻译: 策略层 (组合、自动交易、回测、AI 简报、策略库)。"""
+
+EN = {
+    # --- 组合 / 分配 ---
+    "现金": "Cash",
+    "没有可用 K 线, 按空仓处理": "No usable candles, treated as flat",
+    "动量全为负 → 空仓 (绝对动量保护)": "All momentum negative → flat (absolute momentum guard)",
+    "轮动选中 ": "Rotation picks ",
+    "等权持有 ": "Equal-weight hold ",
+    "(预热不足)": "(not enough warm-up data)",
+    "{}(出错:{})": "{} (error: {})",
+    "{}: 持有 {} / 空仓 {}": "{}: holding {} / flat {}",
+    "无": "None",
+    "组合里一个支柱都没有": "The portfolio has no sleeves",
+    "支柱权重之和为 0": "Sleeve weights sum to 0",
+    "支柱权重之和是 {:.0%}, 不是 100%": "Sleeve weights sum to {:.0%}, not 100%",
+    "{}: 拿不到 {} 的行情": "{}: no market data for {}",
+
+    # --- 自动交易 ---
+    "单标的择时": "Single-symbol timing",
+    "核心-卫星组合": "Core-satellite portfolio",
+    "进取 · 核心65 + QQQ35": "Growth · Core 65 + QQQ 35",
+    "组合回撤 {:.1f}% 触及熔断线 {:.0f}%": "Portfolio drawdown {:.1f}% hit the circuit breaker at {:.0f}%",
+    "组合": "Portfolio",
+    "找不到预设「{}」": "Preset not found: \"{}\"",
+    "预设缺失": "Preset missing",
+    "组合无法解析": "Could not resolve the portfolio",
+    "目标 {:.1f}% / 当前 {:.1f}%": "target {:.1f}% / current {:.1f}%",
+    "拿不到价格": "No price available",
+    "无行情": "No quote",
+    "组合模式不持空头, 平仓": "Portfolio mode holds no shorts, closing",
+    "已不在目标持仓里, 清仓": "No longer in the target holdings, closing out",
+    "建仓到目标权重 {:.1f}%": "Opening to target weight {:.1f}%",
+    "偏离 {:+.1f}pp, 在 ±{:.1f}pp 容忍带内, 不动": "Off by {:+.1f}pp, inside the ±{:.1f}pp band, no action",
+    "差额不足 1 股": "Difference is less than 1 share",
+    "权重低了 {:.1f}pp, 补到 {:.1f}%": "Underweight by {:.1f}pp, topping up to {:.1f}%",
+    "权重高了 {:.1f}pp, 减到 {:.1f}%": "Overweight by {:.1f}pp, trimming to {:.1f}%",
+    "今日交易已达上限 {} 笔": "Daily trade limit of {} reached",
+    "购买力不足": "Insufficient buying power",
+    "数据不足": "Not enough data",
+    "无行情/K线": "No quote / candles",
+    "K线不足以预热该策略": "Not enough candles to warm up this strategy",
+    "预热不足": "Not warmed up",
+    "策略出错: {}": "Strategy error: {}",
+    "策略异常": "Strategy error",
+    "维持现状 ({})": "Holding steady ({})",
+    "持多": "Long",
+    "空仓": "Flat",
+    "持空": "Short",
+    "策略信号转向: {}": "Strategy signal flipped: {}",
+    "策略信号建仓: {}": "Strategy signal to open: {}",
+    "持仓数已达上限 {} 只": "Position limit of {} reached",
+    "按 {:.0f}% 仓位上限算出来不足 1 股": "The {:.0f}% position cap works out to less than 1 share",
+    "触发止损 ({:.1f}% ≤ -{:.0f}%)": "Stop-loss triggered ({:.1f}% ≤ -{:.0f}%)",
+    "触发止盈 ({:.1f}% ≥ {:.0f}%)": "Take-profit triggered ({:.1f}% ≥ {:.0f}%)",
+
+    # --- 回测 ---
+    "信号": "Signal",
+    "K 线只有 {} 根, 该策略至少需要 {} 根": "Only {} candles; this strategy needs at least {}",
+    "止损": "Stop-loss",
+    "止盈": "Take-profit",
+    "强制平仓(追保)": "Forced liquidation (margin call)",
+    "策略运行出错 (第 {} 根): {}": "Strategy failed (bar {}): {}",
+    "回测结束": "End of backtest",
+    "没有可用数据": "No usable data",
+    "全部标的回测失败": "Backtest failed for every symbol",
+    "组合 ({} 只)": "Portfolio ({} symbols)",
+
+    # --- AI 简报 (写给 Claude 读的 Markdown) ---
+    "交易中": "Open",
+    "休市": "Closed",
+    "未知": "Unknown",
+    "# 模拟交易账户简报": "# Paper Trading Account Briefing",
+    "> 这是一个**模拟盘**（虚拟资金，不接任何真实券商）。行情是真的，钱是假的。":
+        "> This is a **paper trading** account (virtual money, not connected to any real broker). "
+        "The market data is real; the money is not.",
+    "> 请基于下面的数据给出调仓建议，写入 `data/ai/decisions.json`（格式见文末）。":
+        "> Based on the data below, suggest rebalancing trades and write them to "
+        "`data/ai/decisions.json` (format at the end).",
+    "- 生成时间：{}（纽约时间），市场状态：**{}**": "- Generated: {} (New York time), market status: **{}**",
+    "- 账户：{}（{}）": "- Account: {} ({})",
+    "保证金账户 2x": "Margin account 2x",
+    "现金账户": "Cash account",
+    "## 1. 账户状态": "## 1. Account Status",
+    "| 项目 | 数值 |": "| Item | Value |",
+    "| 总资产 | ${:,.2f} |": "| Total equity | ${:,.2f} |",
+    "| 初始资金 | ${:,.2f} |": "| Starting capital | ${:,.2f} |",
+    "| 总收益率 | {:+.2f}% |": "| Total return | {:+.2f}% |",
+    "| 可用现金 | ${:,.2f} |": "| Available cash | ${:,.2f} |",
+    "| 购买力 | ${:,.2f} |": "| Buying power | ${:,.2f} |",
+    "| 持仓市值 | ${:,.2f} |": "| Market value of positions | ${:,.2f} |",
+    "| 浮动盈亏 | ${:+,.2f} |": "| Unrealized P&L | ${:+,.2f} |",
+    "| 已实现盈亏 | ${:+,.2f} |": "| Realized P&L | ${:+,.2f} |",
+    "| 累计费用 | ${:,.2f} |": "| Total fees | ${:,.2f} |",
+    "| 胜率 / 平仓次数 | {:.0f}% / {} |": "| Win rate / closed trades | {:.0f}% / {} |",
+    "| 最大回撤 | {:.2f}% |": "| Max drawdown | {:.2f}% |",
+    "| 近5日日内交易 | {} 次（PDT 上限 3 次，净值 <$25k 时生效）|":
+        "| Day trades, last 5 days | {} (PDT limit is 3, applies when equity < $25k) |",
+    "## 2. 当前持仓": "## 2. Current Positions",
+    "*当前空仓。*": "*No open positions.*",
+    "| 代码 | 方向 | 股数 | 成本 | 现价 | 市值 | 浮动盈亏 | 盈亏% | 占净值 | 持有天数 |":
+        "| Symbol | Side | Shares | Cost | Price | Value | Unrealized P&L | P&L % | % of equity | Days held |",
+    "## 3. 未成交挂单": "## 3. Open Orders",
+    "| 代码 | 内容 | 挂单时间 |": "| Symbol | Order | Placed at |",
+    "## 4. 关注标的行情与技术指标": "## 4. Watchlist Quotes and Technical Indicators",
+    "`vs MA` 为正表示价格在均线上方；`布林位置` 0=下轨 100=上轨；`ATR%` 为日均波动幅度；`ADX` >25 表示趋势明确。":
+        "Positive `vs MA` means price is above the moving average; `Bollinger %` is 0 at the lower band "
+        "and 100 at the upper band; `ATR%` is average daily range; `ADX` > 25 means a clear trend.",
+    "| 代码 | 现价 | 今日 | RSI14 | vs MA20 | vs MA50 | vs MA200 | 布林位置 | ADX | ATR% | 20日动量 | 距52周高 |":
+        "| Symbol | Price | Today | RSI14 | vs MA20 | vs MA50 | vs MA200 | Bollinger % | ADX | ATR% | 20d momentum | From 52w high |",
+    "## 5. 最近成交": "## 5. Recent Trades",
+    "| 时间 | 代码 | 方向 | 股数 | 价格 | 已实现盈亏 |": "| Time | Symbol | Side | Shares | Price | Realized P&L |",
+    "## 6. 必须遵守的约束": "## 6. Constraints You Must Follow",
+    "- 单只标的最多占净值 **{:.0f}%**": "- A single symbol may be at most **{:.0f}%** of equity",
+    "- 最多同时持有 **{} 只**": "- Hold at most **{} symbols** at once",
+    "- 每日最多 **{} 笔**交易": "- At most **{} trades** per day",
+    "- 做空：{}": "- Short selling: {}",
+    "允许": "Allowed",
+    "**不允许**": "**Not allowed**",
+    "- 可用购买力 **${:,.2f}**，不要给出超出购买力的建议":
+        "- Available buying power is **${:,.2f}**; do not suggest trades beyond it",
+    "- 卖出/回补的股数不能超过现有持仓": "- Shares sold or covered cannot exceed the current position",
+    "- 账户净值低于 $25,000 时，5 个交易日内最多 3 次日内交易（当日买当日卖）":
+        "- With equity below $25,000, at most 3 day trades (buy and sell on the same day) in 5 trading days",
+    "**回测参考**：{}": "**Backtest reference**: {}",
+    "## 7. 请输出的格式": "## 7. Output Format",
+    "把建议写入 `data/ai/decisions.json`，覆盖原文件：":
+        "Write your suggestions to `data/ai/decisions.json`, overwriting the file:",
+    "一句话总结本次调仓思路": "One-sentence summary of this rebalance",
+    "为什么这么做，引用上面表格里的具体数字": "Why, citing specific numbers from the tables above",
+    "- `action` 只能是 `BUY`(买入开多) / `SELL`(卖出平多) / `SHORT`(做空) / `COVER`(买入回补)":
+        "- `action` must be `BUY` (open long) / `SELL` (close long) / `SHORT` (open short) / `COVER` (close short)",
+    "- `order_type` 为 `MARKET` 或 `LIMIT`；用 `LIMIT` 时必须给 `limit_price`":
+        "- `order_type` is `MARKET` or `LIMIT`; `LIMIT` requires `limit_price`",
+    "- 不需要调仓就返回空的 `decisions` 数组，并在 `note` 里说明为什么按兵不动":
+        "- If no change is needed, return an empty `decisions` array and explain in `note` why you are holding",
+    "- `reason` 要具体，引用上面的指标数字，不要写“看起来不错”这类空话":
+        "- `reason` must be specific and cite the indicator numbers above, not vague phrases like \"looks good\"",
+
+    # --- 读取 AI 建议 ---
+    "还没有 decisions.json —— 先导出简报, 让 Claude 读完写一份":
+        "No decisions.json yet. Export a briefing first and let Claude write one.",
+    "decisions.json 解析失败: {}": "Could not parse decisions.json: {}",
+    "decisions.json 顶层必须是一个 JSON 对象": "The top level of decisions.json must be a JSON object",
+    "decisions 字段必须是数组": "The decisions field must be an array",
+    "缺少 symbol": "Missing symbol",
+    "action 无效: {}": "Invalid action: {}",
+    "(空)": "(empty)",
+    "qty 必须是正整数": "qty must be a positive whole number",
+    "order_type 只能是 MARKET 或 LIMIT": "order_type must be MARKET or LIMIT",
+    "限价单必须给出 limit_price": "A limit order needs limit_price",
+    "只持有 {} 股多头, 卖不了 {} 股": "Only {} shares long, cannot sell {}",
+    "只持有 {} 股空头, 回补不了 {} 股": "Only {} shares short, cannot cover {}",
+    "拿不到 {} 的行情, 无法校验 (代码写错了?)": "No quote for {}, cannot validate (typo in the symbol?)",
+}

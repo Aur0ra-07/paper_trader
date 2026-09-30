@@ -6,6 +6,7 @@ import queue
 from PyQt6 import QtCore
 
 from ..market import MarketData
+from ..i18n import _tr
 
 
 class QuoteWorker(QtCore.QThread):
@@ -49,9 +50,9 @@ class QuoteWorker(QtCore.QThread):
                     if data and not self._stop:
                         self.quotes_ready.emit(data)
                     elif not data:
-                        self.failed.emit("行情拉取失败, 正在重试…")
+                        self.failed.emit(_tr("行情拉取失败, 正在重试…"))
                 except Exception as exc:            # 网络异常不应杀死线程
-                    self.failed.emit("行情异常: {}".format(exc))
+                    self.failed.emit(_tr("行情异常: {}").format(exc))
             self._lock.lock()
             self._wait.wait(self._lock, self.interval * 1000)
             self._lock.unlock()
@@ -93,7 +94,7 @@ class CandleWorker(QtCore.QThread):
                 if not self._stop:
                     self.candles_ready.emit(symbol, interval, data)
             except Exception as exc:
-                self.failed.emit("K线加载失败 {}: {}".format(symbol, exc))
+                self.failed.emit(_tr("K线加载失败 {}: {}").format(symbol, exc))
 
 
 class SearchWorker(QtCore.QThread):

@@ -4,6 +4,10 @@ from __future__ import annotations
 import time
 import uuid
 from dataclasses import dataclass, field, asdict
+from .i18n import N_, _tr
+
+# 系统起的默认账户名。存盘永远是这个中文原文, 显示时跟着界面语言走。
+DEFAULT_ACCOUNT_NAME = N_("我的模拟账户")
 
 # ---- 方向 ---------------------------------------------------------------
 BUY = "BUY"        # 买入开多 / 加多
@@ -11,7 +15,7 @@ SELL = "SELL"      # 卖出平多
 SHORT = "SHORT"    # 融券做空开仓
 COVER = "COVER"    # 买入回补平空
 
-SIDE_CN = {BUY: "买入", SELL: "卖出", SHORT: "做空", COVER: "回补"}
+SIDE_CN = {BUY: _tr("买入"), SELL: _tr("卖出"), SHORT: _tr("做空"), COVER: _tr("回补")}
 OPENING_SIDES = (BUY, SHORT)
 CLOSING_SIDES = (SELL, COVER)
 BUY_SIDES = (BUY, COVER)     # 需要资金 / 推高成本的一侧
@@ -23,7 +27,7 @@ LIMIT = "LIMIT"
 STOP = "STOP"
 STOP_LIMIT = "STOP_LIMIT"
 
-TYPE_CN = {MARKET: "市价单", LIMIT: "限价单", STOP: "止损单", STOP_LIMIT: "止损限价单"}
+TYPE_CN = {MARKET: _tr("市价单"), LIMIT: _tr("限价单"), STOP: _tr("止损单"), STOP_LIMIT: _tr("止损限价单")}
 
 # ---- 状态 ---------------------------------------------------------------
 PENDING = "PENDING"
@@ -32,8 +36,8 @@ CANCELLED = "CANCELLED"
 REJECTED = "REJECTED"
 EXPIRED = "EXPIRED"
 
-STATUS_CN = {PENDING: "挂单中", FILLED: "已成交", CANCELLED: "已撤单",
-             REJECTED: "已拒绝", EXPIRED: "已过期"}
+STATUS_CN = {PENDING: _tr("挂单中"), FILLED: _tr("已成交"), CANCELLED: _tr("已撤单"),
+             REJECTED: _tr("已拒绝"), EXPIRED: _tr("已过期")}
 
 DAY = "DAY"
 GTC = "GTC"
@@ -77,11 +81,11 @@ class Order:
 
     def describe(self) -> str:
         bits = [SIDE_CN.get(self.side, self.side), TYPE_CN.get(self.order_type, self.order_type),
-                "{} 股".format(self.qty)]
+                _tr("{} 股").format(self.qty)]
         if self.order_type in (LIMIT, STOP_LIMIT):
-            bits.append("限价 {:.2f}".format(self.limit_price))
+            bits.append(_tr("限价 {:.2f}").format(self.limit_price))
         if self.order_type in (STOP, STOP_LIMIT):
-            bits.append("触发 {:.2f}".format(self.stop_price))
+            bits.append(_tr("触发 {:.2f}").format(self.stop_price))
         return " ".join(bits)
 
 
@@ -190,7 +194,7 @@ DEFAULT_WATCHLIST = ["AAPL", "MSFT", "NVDA", "TSLA", "AMZN", "GOOGL", "META", "S
 
 @dataclass
 class Account:
-    name: str = "我的模拟账户"
+    name: str = DEFAULT_ACCOUNT_NAME
     id: str = field(default_factory=_uid)
     account_type: str = "MARGIN"       # CASH | MARGIN
     initial_cash: float = 100000.0
@@ -207,6 +211,15 @@ class Account:
     option_trades: list = field(default_factory=list)
 
     # -- 计算 -----------------------------------------------------------
+    @property
+    def display_name(self) -> str:
+        """界面上显示的名字。默认名跟着语言走, 用户自己起的名字原样显示。
+
+        删除/重置时要手打账户名确认 —— 那里显示和校验必须都用这个,
+        否则显示的是英文、校验的是中文, 永远确认不了。
+        """
+        return _tr(self.name) if self.name == DEFAULT_ACCOUNT_NAME else self.name
+
     def open_positions(self) -> list:
         return [p for p in self.positions.values() if p.qty != 0]
 
@@ -299,7 +312,7 @@ class Account:
     @classmethod
     def from_dict(cls, d: dict) -> "Account":
         acc = cls(
-            name=d.get("name", "我的模拟账户"),
+            name=d.get("name", DEFAULT_ACCOUNT_NAME),
             id=d.get("id", _uid()),
             account_type=d.get("account_type", "MARGIN"),
             initial_cash=float(d.get("initial_cash", 100000.0)),

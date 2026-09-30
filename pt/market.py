@@ -8,6 +8,7 @@ from dataclasses import dataclass, field
 from typing import Iterable
 
 import requests
+from .i18n import _tr
 
 _UA = ("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
        "(KHTML, like Gecko) Chrome/124.0 Safari/537.36")
@@ -77,26 +78,26 @@ class MarketData:
 
     # (接口周期代码, 默认 range)
     INTERVALS = {
-        "1分": ("1m", "5d"),
-        "5分": ("5m", "1mo"),
-        "15分": ("15m", "1mo"),
-        "60分": ("60m", "2y"),
-        "日线": ("1d", "5y"),
-        "周线": ("1wk", "20y"),
+        _tr("1分"): ("1m", "5d"),
+        _tr("5分"): ("5m", "1mo"),
+        _tr("15分"): ("15m", "1mo"),
+        _tr("60分"): ("60m", "2y"),
+        _tr("日线"): ("1d", "5y"),
+        _tr("周线"): ("1wk", "20y"),
     }
 
     # 每个周期**实测**可用的 range 档位 (标签, range)。
     # 注意 range="max" 是个陷阱: 日线/周线传 max 只会返回 405 根, 因为接口
     # 会偷偷降采样成月线。要真正的全历史必须走 period1/period2, 见 ALL_RANGE。
     RANGES = {
-        "1m":  [("1 天", "1d"), ("5 天", "5d")],
-        "5m":  [("5 天", "5d"), ("1 个月", "1mo")],
-        "15m": [("1 个月", "1mo")],
-        "60m": [("3 个月", "3mo"), ("1 年", "1y"), ("2 年", "2y")],
-        "1d":  [("6 个月", "6mo"), ("1 年", "1y"), ("2 年", "2y"), ("5 年", "5y"),
-                ("10 年", "10y"), ("20 年", "20y"), ("全部历史", ALL_RANGE)],
-        "1wk": [("5 年", "5y"), ("10 年", "10y"), ("20 年", "20y"),
-                ("全部历史", ALL_RANGE)],
+        "1m":  [(_tr("1 天"), "1d"), (_tr("5 天"), "5d")],
+        "5m":  [(_tr("5 天"), "5d"), (_tr("1 个月"), "1mo")],
+        "15m": [(_tr("1 个月"), "1mo")],
+        "60m": [(_tr("3 个月"), "3mo"), (_tr("1 年"), "1y"), (_tr("2 年"), "2y")],
+        "1d":  [(_tr("6 个月"), "6mo"), (_tr("1 年"), "1y"), (_tr("2 年"), "2y"), (_tr("5 年"), "5y"),
+                (_tr("10 年"), "10y"), (_tr("20 年"), "20y"), (_tr("全部历史"), ALL_RANGE)],
+        "1wk": [(_tr("5 年"), "5y"), (_tr("10 年"), "10y"), (_tr("20 年"), "20y"),
+                (_tr("全部历史"), ALL_RANGE)],
     }
 
     def __init__(self, include_prepost: bool = True, timeout: int = 12):
@@ -125,14 +126,14 @@ class MarketData:
             try:
                 r = self._session.get(base + path, params=params, timeout=self.timeout)
                 if r.status_code == 404:
-                    raise MarketError("代码不存在")
+                    raise MarketError(_tr("代码不存在"))
                 r.raise_for_status()
                 return r.json()
             except MarketError:
                 raise
             except Exception as exc:          # 网络抖动时切备用域名
                 last = exc
-        raise MarketError("行情请求失败: {}".format(last))
+        raise MarketError(_tr("行情请求失败: {}").format(last))
 
     # ------------------------------------------------------------------
     def _y_quote(self, symbol: str) -> Quote:
@@ -143,10 +144,10 @@ class MarketData:
         )
         chart = data.get("chart") or {}
         if chart.get("error"):
-            raise MarketError(chart["error"].get("description") or "未知错误")
+            raise MarketError(chart["error"].get("description") or _tr("未知错误"))
         results = chart.get("result") or []
         if not results:
-            raise MarketError("无行情数据")
+            raise MarketError(_tr("无行情数据"))
         m = results[0].get("meta") or {}
 
         price = _f(m.get("regularMarketPrice"))
@@ -179,7 +180,7 @@ class MarketData:
         # 一个都没拿到 = Yahoo 整体不可用, 必须抛出去让 _dispatch 切备用源。
         # 以前这里静默返回空字典, 导致批量报价永远走不到兜底。
         if not out:
-            raise MarketError("Yahoo 批量报价全部失败")
+            raise MarketError(_tr("Yahoo 批量报价全部失败"))
         return out
 
     def _y_safe_quote(self, symbol: str) -> "Quote | None":
@@ -215,7 +216,7 @@ class MarketData:
         data = self._get("/v8/finance/chart/" + symbol.upper(), params)
         chart = data.get("chart") or {}
         if chart.get("error"):
-            raise MarketError(chart["error"].get("description") or "未知错误")
+            raise MarketError(chart["error"].get("description") or _tr("未知错误"))
         results = chart.get("result") or []
         if not results:
             return []
@@ -273,7 +274,7 @@ class MarketData:
                     self._y_cold_until = now + 120.0
         fb = self._fallback()
         if fb is None:
-            raise MarketError("Yahoo 不可用, 且备用源已关闭")
+            raise MarketError(_tr("Yahoo 不可用, 且备用源已关闭"))
         out = getattr(fb, name)(*args, **kw)
         self.active_source = "eastmoney"
         return out
@@ -336,7 +337,7 @@ class MarketData:
         data = self._get("/v8/finance/chart/" + symbol.upper(), params)
         chart = data.get("chart") or {}
         if chart.get("error"):
-            raise MarketError(chart["error"].get("description") or "未知错误")
+            raise MarketError(chart["error"].get("description") or _tr("未知错误"))
         results = chart.get("result") or []
         if not results:
             return []

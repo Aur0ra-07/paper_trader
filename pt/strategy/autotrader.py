@@ -20,6 +20,7 @@ from ..engine import TradingEngine, ET, et_date
 from ..models import Order, BUY, SELL, SHORT, COVER, MARKET, SIDE_CN
 from . import allocator, presets
 from .library import create, REGISTRY
+from ..i18n import N_, _tr
 
 CONFIG_PATH = os.path.join(DATA_DIR, "autotrader.json")
 LOG_PATH = os.path.join(DATA_DIR, "autotrader_log.jsonl")
@@ -27,7 +28,7 @@ LOG_PATH = os.path.join(DATA_DIR, "autotrader_log.jsonl")
 HOLD = "HOLD"
 
 SINGLE, PORTFOLIO = "single", "portfolio"
-MODE_CN = {SINGLE: "单标的择时", PORTFOLIO: "核心-卫星组合"}
+MODE_CN = {SINGLE: _tr("单标的择时"), PORTFOLIO: _tr("核心-卫星组合")}
 
 
 @dataclass
@@ -72,7 +73,7 @@ class AutoConfig:
 
     # -- 组合模式 --
     mode: str = SINGLE              # SINGLE=单标的择时 / PORTFOLIO=核心-卫星组合
-    preset: str = "进取 · 核心65 + QQQ35"
+    preset: str = N_("进取 · 核心65 + QQQ35")
     rebalance_band_pct: float = 2.0  # 权重偏离目标超过这么多个百分点才动手
 
     def sleeves(self) -> list:
@@ -152,7 +153,7 @@ class AutoTrader:
             dd = (self.peak_equity - equity) / self.peak_equity * 100.0
             if dd >= lim.halt_drawdown_pct:
                 self.halted = True
-                self.halt_reason = "组合回撤 {:.1f}% 触及熔断线 {:.0f}%".format(
+                self.halt_reason = _tr("组合回撤 {:.1f}% 触及熔断线 {:.0f}%").format(
                     dd, lim.halt_drawdown_pct)
         return equity
 
@@ -175,8 +176,8 @@ class AutoTrader:
 
         sleeves = cfg.sleeves()
         if not sleeves:
-            return [Decision("组合", HOLD, reason="找不到预设「{}」".format(cfg.preset),
-                             blocked="预设缺失")]
+            return [Decision(_tr("组合"), HOLD, reason=_tr("找不到预设「{}」").format(cfg.preset),
+                             blocked=_tr("预设缺失"))]
 
         # 只用已收盘的 K 线发信号 (不变量 3)
         idx = {}
@@ -187,7 +188,7 @@ class AutoTrader:
                                         q.market_state if q else "CLOSED")
         plan = allocator.plan(sleeves, candles_by_symbol, idx, lim.allow_short)
         if not plan.ok:
-            return [Decision("组合", HOLD, reason=plan.error, blocked="组合无法解析")]
+            return [Decision(_tr("组合"), HOLD, reason=plan.error, blocked=_tr("组合无法解析"))]
         self.last_plan = plan
 
         band = max(cfg.rebalance_band_pct, 0.0) / 100.0
@@ -212,50 +213,50 @@ class AutoTrader:
             cur_dir = 0 if pos.qty == 0 else (1 if pos.qty > 0 else -1)
             d = Decision(sym, HOLD, price=px, current_dir=cur_dir,
                          target_dir=1 if tgt_w > 0 else 0,
-                         indicator="目标 {:.1f}% / 当前 {:.1f}%".format(
+                         indicator=_tr("目标 {:.1f}% / 当前 {:.1f}%").format(
                              tgt_w * 100, cur_w * 100))
             if px <= 0:
-                d.reason, d.blocked = "拿不到价格", "无行情"
+                d.reason, d.blocked = _tr("拿不到价格"), _tr("无行情")
                 decisions.append(d)
                 continue
 
             if pos.qty < 0:                     # 组合模式不做空, 先平掉
                 d.action, d.qty = COVER, pos.abs_qty
-                d.reason = "组合模式不持空头, 平仓"
+                d.reason = _tr("组合模式不持空头, 平仓")
             elif tgt_w <= 0 and pos.qty > 0:
                 d.action, d.qty = SELL, pos.abs_qty
-                d.reason = "已不在目标持仓里, 清仓"
+                d.reason = _tr("已不在目标持仓里, 清仓")
             elif pos.qty == 0 and tgt_w > 0 and int((tgt_w * equity) // px) >= 1:
                 # 容忍带管的是"已有仓位要不要调", 不该拦住建仓 ——
                 # 否则目标权重比容忍带还小的支柱(比如 3.2% 配 3.5pp 带)永远建不上。
                 d.action, d.qty = BUY, int((tgt_w * equity) // px)
-                d.reason = "建仓到目标权重 {:.1f}%".format(tgt_w * 100)
+                d.reason = _tr("建仓到目标权重 {:.1f}%").format(tgt_w * 100)
             elif abs(diff_w) < band:
-                d.reason = "偏离 {:+.1f}pp, 在 ±{:.1f}pp 容忍带内, 不动".format(
+                d.reason = _tr("偏离 {:+.1f}pp, 在 ±{:.1f}pp 容忍带内, 不动").format(
                     diff_w * 100, band * 100)
             else:
                 want_qty = int((tgt_w * equity) // px)
                 delta = want_qty - pos.qty
                 if delta == 0:
-                    d.reason = "差额不足 1 股"
+                    d.reason = _tr("差额不足 1 股")
                 elif delta > 0:
                     d.action, d.qty = BUY, delta
-                    d.reason = "权重低了 {:.1f}pp, 补到 {:.1f}%".format(
+                    d.reason = _tr("权重低了 {:.1f}pp, 补到 {:.1f}%").format(
                         -diff_w * 100 if diff_w < 0 else diff_w * 100, tgt_w * 100)
                 else:
                     d.action, d.qty = SELL, -delta
-                    d.reason = "权重高了 {:.1f}pp, 减到 {:.1f}%".format(
+                    d.reason = _tr("权重高了 {:.1f}pp, 减到 {:.1f}%").format(
                         -diff_w * 100, tgt_w * 100)
 
             if d.action != HOLD:
                 if self.halted:
                     d.blocked = self.halt_reason
                 elif trades_today >= lim.max_trades_per_day:
-                    d.blocked = "今日交易已达上限 {} 笔".format(lim.max_trades_per_day)
+                    d.blocked = _tr("今日交易已达上限 {} 笔").format(lim.max_trades_per_day)
                 elif d.action == BUY and d.qty * px > avail_bp:
                     d.qty = max(int(avail_bp // px), 0)
                     if d.qty < 1:
-                        d.blocked = "购买力不足"
+                        d.blocked = _tr("购买力不足")
                 if d.actionable:                # 额度在批内逐条扣减 (不变量 4)
                     trades_today += 1
                     avail_bp += (-d.qty * px if d.action == BUY else d.qty * px)
@@ -289,14 +290,14 @@ class AutoTrader:
 
             if len(candles) < 10 or px <= 0:
                 decisions.append(Decision(sym, HOLD, current_dir=cur_dir,
-                                          reason="数据不足", blocked="无行情/K线"))
+                                          reason=_tr("数据不足"), blocked=_tr("无行情/K线")))
                 continue
 
             i = signal_index(candles, cfg.interval, q.market_state if q else "CLOSED")
             strat = create(cfg.strategy_key, **(cfg.params or {}))
             if i < strat.warmup():
                 decisions.append(Decision(sym, HOLD, current_dir=cur_dir,
-                                          reason="K线不足以预热该策略", blocked="预热不足"))
+                                          reason=_tr("K线不足以预热该策略"), blocked=_tr("预热不足")))
                 continue
             strat.prepare(candles)
             try:
@@ -307,7 +308,7 @@ class AutoTrader:
                 note = strat.explain(i)
             except Exception as exc:
                 decisions.append(Decision(sym, HOLD, current_dir=cur_dir,
-                                          reason="策略出错: {}".format(exc), blocked="策略异常"))
+                                          reason=_tr("策略出错: {}").format(exc), blocked=_tr("策略异常")))
                 continue
 
             if not lim.allow_short and tgt < 0:
@@ -323,34 +324,34 @@ class AutoTrader:
                 d.qty = pos.abs_qty
                 d.reason = forced
             elif tgt == cur_dir:
-                d.reason = "维持现状 ({})".format(
-                    {1: "持多", 0: "空仓", -1: "持空"}[cur_dir])
+                d.reason = _tr("维持现状 ({})").format(
+                    {1: _tr("持多"), 0: _tr("空仓"), -1: _tr("持空")}[cur_dir])
             elif cur_dir != 0 and tgt != cur_dir:
                 d.action = COVER if cur_dir < 0 else SELL
                 d.qty = pos.abs_qty
-                d.reason = "策略信号转向: {}".format(note)
+                d.reason = _tr("策略信号转向: {}").format(note)
             else:
                 budget = equity * (lim.max_position_pct / 100.0)
                 qty = int(budget // px) if px > 0 else 0
                 d.action = BUY if tgt > 0 else SHORT
                 d.qty = qty
-                d.reason = "策略信号建仓: {}".format(note)
+                d.reason = _tr("策略信号建仓: {}").format(note)
 
             # -- 风控拦截 (额度在批内逐条扣减) --
             if d.action != HOLD:
                 if self.halted:
                     d.blocked = self.halt_reason
                 elif trades_today >= lim.max_trades_per_day:
-                    d.blocked = "今日交易已达上限 {} 笔".format(lim.max_trades_per_day)
+                    d.blocked = _tr("今日交易已达上限 {} 笔").format(lim.max_trades_per_day)
                 elif d.action in (BUY, SHORT):
                     if open_count >= lim.max_positions:
-                        d.blocked = "持仓数已达上限 {} 只".format(lim.max_positions)
+                        d.blocked = _tr("持仓数已达上限 {} 只").format(lim.max_positions)
                     elif d.qty < 1:
-                        d.blocked = "按 {:.0f}% 仓位上限算出来不足 1 股".format(lim.max_position_pct)
+                        d.blocked = _tr("按 {:.0f}% 仓位上限算出来不足 1 股").format(lim.max_position_pct)
                     elif d.qty * px > avail_bp:
                         d.qty = max(int(avail_bp // px), 0)
                         if d.qty < 1:
-                            d.blocked = "购买力不足"
+                            d.blocked = _tr("购买力不足")
 
                 if d.actionable:
                     trades_today += 1
@@ -369,9 +370,9 @@ class AutoTrader:
             return ""
         pct = pos.unrealized_pct(px)
         if lim.stop_loss_pct > 0 and pct <= -lim.stop_loss_pct:
-            return "触发止损 ({:.1f}% ≤ -{:.0f}%)".format(pct, lim.stop_loss_pct)
+            return _tr("触发止损 ({:.1f}% ≤ -{:.0f}%)").format(pct, lim.stop_loss_pct)
         if lim.take_profit_pct > 0 and pct >= lim.take_profit_pct:
-            return "触发止盈 ({:.1f}% ≥ {:.0f}%)".format(pct, lim.take_profit_pct)
+            return _tr("触发止盈 ({:.1f}% ≥ {:.0f}%)").format(pct, lim.take_profit_pct)
         return ""
 
     # ------------------------------------------------------------------

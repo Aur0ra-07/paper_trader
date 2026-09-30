@@ -6,6 +6,8 @@ from PyQt6 import QtCore, QtGui, QtWidgets
 
 from ..options import pricing as pr
 from . import theme
+from .chart import MoneyAxis
+from ..i18n import _tr
 
 
 class PayoffChart(QtWidgets.QWidget):
@@ -26,10 +28,10 @@ class PayoffChart(QtWidgets.QWidget):
         self.readout.setMinimumHeight(18)
         lay.addWidget(self.readout)
 
-        self.plot = pg.PlotWidget()
+        self.plot = pg.PlotWidget(axisItems={"left": MoneyAxis()})
         self.plot.showGrid(x=True, y=True, alpha=0.12)
         self.plot.getAxis("left").setWidth(70)
-        self.plot.setLabel("bottom", "到期时底层价格")
+        self.plot.setLabel("bottom", _tr("到期时底层价格"))
         lay.addWidget(self.plot, 1)
 
         self.zero = pg.InfiniteLine(pos=0, angle=0, movable=False,
@@ -38,21 +40,21 @@ class PayoffChart(QtWidgets.QWidget):
         self.spot_line = pg.InfiniteLine(
             angle=90, movable=False,
             pen=pg.mkPen(theme.ACCENT, width=1.2, style=QtCore.Qt.PenStyle.DashLine),
-            label="现价 {value:.2f}",
+            label=_tr("现价 {value:.2f}"),
             labelOpts={"position": 0.95, "color": theme.ACCENT,
                        "fill": (20, 24, 30, 200)})
         self.plot.addItem(self.spot_line)
 
         self.curve_exp = self.plot.plot([], [], pen=pg.mkPen(theme.TEXT, width=2.2),
-                                        name="到期损益")
+                                        name=_tr("到期损益"))
         self.curve_now = self.plot.plot(
             [], [], pen=pg.mkPen(theme.GOLD, width=1.4,
-                                 style=QtCore.Qt.PenStyle.DashLine), name="当前损益")
+                                 style=QtCore.Qt.PenStyle.DashLine), name=_tr("当前损益"))
         self.fill_up = None
         self.fill_dn = None
         self._be_lines: list = []
 
-        self.empty = pg.TextItem("选好合约后这里会画出损益图", color=theme.TEXT_DIM,
+        self.empty = pg.TextItem(_tr("选好合约后这里会画出损益图"), color=theme.TEXT_DIM,
                                  anchor=(0.5, 0.5))
         self.plot.addItem(self.empty)
 
@@ -65,6 +67,22 @@ class PayoffChart(QtWidgets.QWidget):
         self._xs: list = []
         self._ys: list = []
         self._now: list = []
+        self._show_empty(True)
+
+    def _show_empty(self, on: bool) -> None:
+        """空状态: 固定视野、藏掉刻度数字、提示文字居中。
+
+        不这么做的话零线和现价线都在 0, 视野塌缩到一个极小区间,
+        坐标轴会显示 -1e-112 / 5e-124 这种乱码, 提示文字也会被切掉半截。
+        """
+        self.empty.setVisible(on)
+        self.spot_line.setVisible(not on)
+        for ax in ("left", "bottom"):
+            self.plot.getAxis(ax).setStyle(showValues=not on)
+        if on:
+            self.empty.setPos(0, 0)
+            self.plot.setXRange(-1, 1, padding=0)
+            self.plot.setYRange(-1, 1, padding=0)
 
     # ------------------------------------------------------------------
     def clear(self):
@@ -72,7 +90,7 @@ class PayoffChart(QtWidgets.QWidget):
         self.curve_now.setData([], [])
         self._clear_fills()
         self._clear_be()
-        self.empty.setVisible(True)
+        self._show_empty(True)
         self.readout.setText("")
         self._xs, self._ys, self._now = [], [], []
 
@@ -94,7 +112,7 @@ class PayoffChart(QtWidgets.QWidget):
         if not legs or spot <= 0:
             self.clear()
             return {}
-        self.empty.setVisible(False)
+        self._show_empty(False)
         self._clear_fills()
         self._clear_be()
 
@@ -155,7 +173,7 @@ class PayoffChart(QtWidgets.QWidget):
             ln = pg.InfiniteLine(pos=x, angle=90, movable=False,
                                  pen=pg.mkPen(theme.TEXT_DIM, width=1,
                                               style=QtCore.Qt.PenStyle.DotLine),
-                                 label="平衡 {:.2f}".format(x),
+                                 label=_tr("平衡 {:.2f}").format(x),
                                  labelOpts={"position": 0.08, "color": theme.TEXT_DIM,
                                             "fill": (20, 24, 30, 190)})
             self.plot.addItem(ln)
@@ -187,10 +205,10 @@ class PayoffChart(QtWidgets.QWidget):
             return
         i = min(int((x - lo) / (hi - lo) * (len(self._xs) - 1)), len(self._xs) - 1)
         y = self._ys[i]
-        txt = ('底层 <b>{:.2f}</b> 时  到期损益 <b style="color:{}">{}</b>'.format(
+        txt = (_tr('底层 <b>{:.2f}</b> 时  到期损益 <b style="color:{}">{}</b>').format(
             self._xs[i], theme.pnl_color(y), theme.signed_money(y)))
         if self._now:
             yn = self._now[i]
-            txt += '   现在平掉 <span style="color:{}">{}</span>'.format(
+            txt += _tr('   现在平掉 <span style="color:{}">{}</span>').format(
                 theme.pnl_color(yn), theme.signed_money(yn))
         self.readout.setText(txt)

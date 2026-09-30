@@ -19,8 +19,9 @@ from .panels import Card, NumItem, make_table, cell, fill_table, LEFT, RIGHT, CE
 from .chart import MoneyAxis
 from ..strategy.presets import PRESETS, ROT_CFG, ROT_POOL, TREND_POOL, _core
 from .rotation_tab import PeriodPicker, WindowDistWidget
+from ..i18n import _tr
 
-KIND_CN = {ASSET: "买入持有", STRATEGY: "择时策略", ROTATION: "动量轮动", CASH: "现金"}
+KIND_CN = {ASSET: _tr("买入持有"), STRATEGY: _tr("择时策略"), ROTATION: _tr("动量轮动"), CASH: _tr("现金")}
 
 class MixWorker(QtCore.QThread):
     done = QtCore.pyqtSignal(object)
@@ -45,7 +46,7 @@ class MixWorker(QtCore.QThread):
         syms = sorted({s for sl in sleeves for s in sl.symbols} | {"SPY"})
         data = {}
         for n, s in enumerate(syms, 1):
-            self.progress.emit("拉取 {} ({}/{})".format(s, n, len(syms)))
+            self.progress.emit(_tr("拉取 {} ({}/{})").format(s, n, len(syms)))
             try:
                 c = self.market.candles_between(s, start, end)
                 if len(c) > 60:
@@ -54,29 +55,29 @@ class MixWorker(QtCore.QThread):
                 pass
             time.sleep(0.08)
         if not data:
-            self.failed.emit("没有拿到任何数据")
+            self.failed.emit(_tr("没有拿到任何数据"))
             return
         try:
             if rp:
                 w = risk_parity_weights(sleeves, data, self.settings, cfg)
                 for sl in sleeves:
                     sl.weight = w.get(sl.name, 0.0)
-            self.progress.emit("组合回测中…")
+            self.progress.emit(_tr("组合回测中…"))
             self.done.emit(run_mix(sleeves, data, self.settings, cfg))
         except Exception as exc:
-            self.failed.emit("组合回测失败: {}".format(exc))
+            self.failed.emit(_tr("组合回测失败: {}").format(exc))
 
 
 class SleeveDialog(QtWidgets.QDialog):
     def __init__(self, sleeve: "Sleeve | None", parent=None):
         super().__init__(parent)
-        self.setWindowTitle("编辑组成部分")
+        self.setWindowTitle(_tr("编辑组成部分"))
         self.setMinimumWidth(420)
         form = QtWidgets.QFormLayout(self)
         form.setSpacing(9)
 
-        self.name = QtWidgets.QLineEdit(sleeve.name if sleeve else "新的一块")
-        form.addRow("名称", self.name)
+        self.name = QtWidgets.QLineEdit(sleeve.name if sleeve else _tr("新的一块"))
+        form.addRow(_tr("名称"), self.name)
 
         self.kind = QtWidgets.QComboBox()
         for k in (ASSET, STRATEGY, ROTATION, CASH):
@@ -85,11 +86,11 @@ class SleeveDialog(QtWidgets.QDialog):
             i = self.kind.findData(sleeve.kind)
             self.kind.setCurrentIndex(max(i, 0))
         self.kind.currentIndexChanged.connect(self._on_kind)
-        form.addRow("类型", self.kind)
+        form.addRow(_tr("类型"), self.kind)
 
         self.symbols = QtWidgets.QLineEdit(",".join(sleeve.symbols) if sleeve else "SPY")
-        self.symbols.setPlaceholderText("代码用逗号分隔")
-        form.addRow("标的", self.symbols)
+        self.symbols.setPlaceholderText(_tr("代码用逗号分隔"))
+        form.addRow(_tr("标的"), self.symbols)
 
         self.strategy = QtWidgets.QComboBox()
         for k in library.STRATEGY_ORDER:
@@ -97,19 +98,19 @@ class SleeveDialog(QtWidgets.QDialog):
         if sleeve and sleeve.strategy_key:
             i = self.strategy.findData(sleeve.strategy_key)
             self.strategy.setCurrentIndex(max(i, 0))
-        form.addRow("策略", self.strategy)
+        form.addRow(_tr("策略"), self.strategy)
 
         self.lookback = QtWidgets.QSpinBox(); self.lookback.setRange(10, 750)
         self.lookback.setValue((sleeve.rotation or {}).get("lookback", 120) if sleeve else 120)
-        form.addRow("轮动回看(根)", self.lookback)
+        form.addRow(_tr("轮动回看(根)"), self.lookback)
         self.topk = QtWidgets.QSpinBox(); self.topk.setRange(1, 20)
         self.topk.setValue((sleeve.rotation or {}).get("top_k", 3) if sleeve else 3)
-        form.addRow("轮动持有前几名", self.topk)
+        form.addRow(_tr("轮动持有前几名"), self.topk)
 
         self.weight = QtWidgets.QDoubleSpinBox()
         self.weight.setRange(0, 100); self.weight.setSuffix(" %")
         self.weight.setValue((sleeve.weight * 100) if sleeve else 25.0)
-        form.addRow("权重", self.weight)
+        form.addRow(_tr("权重"), self.weight)
 
         btns = QtWidgets.QDialogButtonBox(
             QtWidgets.QDialogButtonBox.StandardButton.Ok |
@@ -130,7 +131,7 @@ class SleeveDialog(QtWidgets.QDialog):
         k = self.kind.currentData()
         syms = [s.strip().upper() for s in self.symbols.text().split(",") if s.strip()]
         return Sleeve(
-            name=self.name.text().strip() or "未命名",
+            name=self.name.text().strip() or _tr("未命名"),
             kind=k, symbols=[] if k == CASH else syms,
             weight=self.weight.value() / 100.0,
             strategy_key=self.strategy.currentData() if k == STRATEGY else "buy_hold",
@@ -153,33 +154,33 @@ class PortfolioTab(QtWidgets.QWidget):
         root.setContentsMargins(0, 0, 0, 0)
         root.setSpacing(8)
 
-        side = Card("组合构成")
+        side = Card(_tr("组合构成"))
         side.setMaximumWidth(360)
         side.setMinimumWidth(330)
         intro = QtWidgets.QLabel(
-            "金融里唯一免费的午餐是<b>分散</b>：几个相关性低的收益来源拼起来，"
+            _tr("金融里唯一免费的午餐是<b>分散</b>：几个相关性低的收益来源拼起来，"
             "夏普会高于其中任何一个，回撤还更小。<br>"
-            "要更高收益，正确做法是调「卫星」的比例，不是去梭哈更疯的标的。")
+            "要更高收益，正确做法是调「卫星」的比例，不是去梭哈更疯的标的。"))
         intro.setObjectName("Dim")
         intro.setWordWrap(True)
         side.vbox.addWidget(intro)
 
-        side.vbox.addWidget(QtWidgets.QLabel("预设组合"))
+        side.vbox.addWidget(QtWidgets.QLabel(_tr("预设组合")))
         self.preset = QtWidgets.QComboBox()
         for label, _ in PRESETS:
-            self.preset.addItem(label)
+            self.preset.addItem(_tr(label))     # PRESETS 里存的是原文
         self.preset.setCurrentIndex(1)
         self.preset.currentIndexChanged.connect(self._load_preset)
         side.vbox.addWidget(self.preset)
 
-        self.sleeve_table = make_table(["名称", "类型", "内容", "权重"], stretch_col=2)
+        self.sleeve_table = make_table([_tr("名称"), _tr("类型"), _tr("内容"), _tr("权重")], stretch_col=2)
         self.sleeve_table.setMaximumHeight(190)
         self.sleeve_table.doubleClicked.connect(self._edit_sleeve)
         side.vbox.addWidget(self.sleeve_table)
 
         brow = QtWidgets.QHBoxLayout()
-        for label, slot in (("添加", self._add_sleeve), ("编辑", self._edit_sleeve),
-                            ("删除", self._del_sleeve)):
+        for label, slot in ((_tr("添加"), self._add_sleeve), (_tr("编辑"), self._edit_sleeve),
+                            (_tr("删除"), self._del_sleeve)):
             b = QtWidgets.QPushButton(label)
             b.clicked.connect(slot)
             brow.addWidget(b)
@@ -188,34 +189,34 @@ class PortfolioTab(QtWidgets.QWidget):
         form = QtWidgets.QFormLayout()
         form.setSpacing(6)
         self.period = PeriodPicker()
-        form.addRow("回测区间", self.period)
+        form.addRow(_tr("回测区间"), self.period)
         self.rebal = QtWidgets.QComboBox()
-        for label, bars in (("每月", 21), ("每季度", 63), ("每半年", 126),
-                            ("每年", 252), ("从不", 0)):
+        for label, bars in ((_tr("每月"), 21), (_tr("每季度"), 63), (_tr("每半年"), 126),
+                            (_tr("每年"), 252), (_tr("从不"), 0)):
             self.rebal.addItem(label, bars)
         self.rebal.setCurrentIndex(1)
-        form.addRow("再平衡", self.rebal)
+        form.addRow(_tr("再平衡"), self.rebal)
         self.cash = QtWidgets.QDoubleSpinBox()
         self.cash.setRange(1000, 10_000_000); self.cash.setDecimals(0)
         self.cash.setSingleStep(10000); self.cash.setValue(100000)
         self.cash.setPrefix("$ "); self.cash.setGroupSeparatorShown(True)
-        form.addRow("初始资金", self.cash)
+        form.addRow(_tr("初始资金"), self.cash)
         self.lev = QtWidgets.QDoubleSpinBox()
         self.lev.setRange(1.0, 3.0); self.lev.setSingleStep(0.25)
-        self.lev.setValue(1.0); self.lev.setSuffix(" 倍")
-        self.lev.setToolTip("散户融资利率 6%，对年化 8% 左右的组合加杠杆通常得不偿失")
-        form.addRow("融资杠杆", self.lev)
+        self.lev.setValue(1.0); self.lev.setSuffix(_tr(" 倍"))
+        self.lev.setToolTip(_tr("散户融资利率 6%，对年化 8% 左右的组合加杠杆通常得不偿失"))
+        form.addRow(_tr("融资杠杆"), self.lev)
         self.vol_target = QtWidgets.QDoubleSpinBox()
         self.vol_target.setRange(0, 40); self.vol_target.setSuffix(" %")
         self.vol_target.setValue(0)
-        self.vol_target.setToolTip("0 = 关闭。开启后按实际波动率动态调整总仓位")
-        form.addRow("目标年化波动率", self.vol_target)
+        self.vol_target.setToolTip(_tr("0 = 关闭。开启后按实际波动率动态调整总仓位"))
+        form.addRow(_tr("目标年化波动率"), self.vol_target)
         side.vbox.addLayout(form)
 
-        self.rp_check = QtWidgets.QCheckBox("用风险平价自动分配权重（按波动率倒数）")
+        self.rp_check = QtWidgets.QCheckBox(_tr("用风险平价自动分配权重（按波动率倒数）"))
         side.vbox.addWidget(self.rp_check)
 
-        self.run_btn = QtWidgets.QPushButton("运行组合回测")
+        self.run_btn = QtWidgets.QPushButton(_tr("运行组合回测"))
         self.run_btn.setObjectName("Primary")
         self.run_btn.setMinimumHeight(34)
         self.run_btn.clicked.connect(self._run)
@@ -231,7 +232,7 @@ class PortfolioTab(QtWidgets.QWidget):
         right.setSpacing(8)
 
         chart = Card()
-        self.title = QtWidgets.QLabel("选好组合后点「运行组合回测」")
+        self.title = QtWidgets.QLabel(_tr("选好组合后点「运行组合回测」"))
         self.title.setObjectName("Title")
         chart.vbox.addWidget(self.title)
         self.plot = pg.PlotWidget(axisItems={"bottom": pg.DateAxisItem(orientation="bottom"),
@@ -239,25 +240,25 @@ class PortfolioTab(QtWidgets.QWidget):
         self.plot.showGrid(x=True, y=True, alpha=0.12)
         self.plot.getAxis("left").setWidth(88)
         self.plot.addLegend(offset=(10, 10))
-        self.curve = self.plot.plot([], [], pen=pg.mkPen(theme.ACCENT, width=2.2), name="组合")
+        self.curve = self.plot.plot([], [], pen=pg.mkPen(theme.ACCENT, width=2.2), name=_tr("组合"))
         self.bench = self.plot.plot([], [], pen=pg.mkPen(theme.TEXT_DIM, width=1.4,
-                                    style=QtCore.Qt.PenStyle.DashLine), name="全仓 SPY")
+                                    style=QtCore.Qt.PenStyle.DashLine), name=_tr("全仓 SPY"))
         self.sleeve_curves: list = []
         chart.vbox.addWidget(self.plot, 1)
-        self.show_sleeves = QtWidgets.QCheckBox("同时画出每一块单独的净值")
+        self.show_sleeves = QtWidgets.QCheckBox(_tr("同时画出每一块单独的净值"))
         self.show_sleeves.stateChanged.connect(self._redraw_sleeves)
         chart.vbox.addWidget(self.show_sleeves)
         right.addWidget(chart, 3)
 
-        mc = Card("绩效指标")
+        mc = Card(_tr("绩效指标"))
         grid = QtWidgets.QGridLayout()
         grid.setHorizontalSpacing(16)
         self.metrics = {}
-        items = [("total_return", "总收益"), ("cagr", "年化"), ("sharpe", "夏普"),
-                 ("max_drawdown", "最大回撤"), ("calmar", "卡玛"),
-                 ("benchmark_return", "全仓SPY"), ("alpha", "超额"),
-                 ("avg_correlation", "平均相关性"), ("avg_exposure", "平均仓位"),
-                 ("rebalances", "再平衡次数")]
+        items = [("total_return", _tr("总收益")), ("cagr", _tr("年化")), ("sharpe", _tr("夏普")),
+                 ("max_drawdown", _tr("最大回撤")), ("calmar", _tr("卡玛")),
+                 ("benchmark_return", _tr("全仓SPY")), ("alpha", _tr("超额")),
+                 ("avg_correlation", _tr("平均相关性")), ("avg_exposure", _tr("平均仓位")),
+                 ("rebalances", _tr("再平衡次数"))]
         for i, (k, t) in enumerate(items):
             box = QtWidgets.QVBoxLayout()
             lt = QtWidgets.QLabel(t); lt.setObjectName("Dim")
@@ -276,11 +277,11 @@ class PortfolioTab(QtWidgets.QWidget):
         right.addWidget(self.windows)
 
         tabs = QtWidgets.QTabWidget()
-        self.corr_table = make_table(["A", "B", "相关性", "说明"], stretch_col=3)
-        tabs.addTab(self.corr_table, "相关性矩阵")
+        self.corr_table = make_table(["A", "B", _tr("相关性"), _tr("说明")], stretch_col=3)
+        tabs.addTab(self.corr_table, _tr("相关性矩阵"))
         self.sleeve_metric_table = make_table(
-            ["组成部分", "权重", "总收益", "年化", "夏普", "最大回撤"], stretch_col=0)
-        tabs.addTab(self.sleeve_metric_table, "各部分单独表现")
+            [_tr("组成部分"), _tr("权重"), _tr("总收益"), _tr("年化"), _tr("夏普"), _tr("最大回撤")], stretch_col=0)
+        tabs.addTab(self.sleeve_metric_table, _tr("各部分单独表现"))
         right.addWidget(tabs, 2)
         root.addLayout(right, 1)
 
@@ -330,7 +331,7 @@ class PortfolioTab(QtWidgets.QWidget):
     # ------------------------------------------------------------------
     def _run(self):
         if not self.sleeves:
-            QtWidgets.QMessageBox.information(self, "提示", "组合里至少要有一块。")
+            QtWidgets.QMessageBox.information(self, _tr("提示"), _tr("组合里至少要有一块。"))
             return
         start, end = self.period.range()
         cfg = MixConfig(initial_cash=self.cash.value(),
@@ -340,25 +341,25 @@ class PortfolioTab(QtWidgets.QWidget):
                         interval="1d")
         import copy
         self.run_btn.setEnabled(False)
-        self.status_lab.setText("准备中…")
+        self.status_lab.setText(_tr("准备中…"))
         if not self.worker.start_job(copy.deepcopy(self.sleeves), start, end, cfg,
                                      self.rp_check.isChecked()):
             self.run_btn.setEnabled(True)
-            self.status_lab.setText("上一次还在跑")
+            self.status_lab.setText(_tr("上一次还在跑"))
 
     def _on_failed(self, msg):
         self.run_btn.setEnabled(True)
         self.status_lab.setText(msg)
-        QtWidgets.QMessageBox.warning(self, "组合回测失败", msg)
+        QtWidgets.QMessageBox.warning(self, _tr("组合回测失败"), msg)
 
     def _on_done(self, r):
         self.run_btn.setEnabled(True)
         self.result = r
         if not r.ok:
             self.status_lab.setText(r.error)
-            QtWidgets.QMessageBox.warning(self, "组合回测失败", r.error)
+            QtWidgets.QMessageBox.warning(self, _tr("组合回测失败"), r.error)
             return
-        self.status_lab.setText("完成 · {} 根 K 线".format(r.metrics.get("bars", 0)))
+        self.status_lab.setText(_tr("完成 · {} 根 K 线").format(r.metrics.get("bars", 0)))
         self.title.setText("{}　·　{}".format(self.preset.currentText(), r.strategy_label))
 
         xs = [p[0] for p in r.equity]; ys = [p[1] for p in r.equity]
@@ -392,10 +393,10 @@ class PortfolioTab(QtWidgets.QWidget):
 
         bench_dd = _max_dd(r.benchmark)
         self.verdict.setText(
-            "最大回撤 <b>{:.1f}%</b> vs 全仓 SPY <b>{:.1f}%</b>；"
+            _tr("最大回撤 <b>{:.1f}%</b> vs 全仓 SPY <b>{:.1f}%</b>；"
             "年化 {:.1f}% vs {:.1f}%。<br>"
             "<span style='color:{}'>看卡玛比率（年化÷回撤）而不是只看总收益——"
-            "回撤才是你真正要承受的东西。平均相关性越低，分散越有效。</span>".format(
+            "回撤才是你真正要承受的东西。平均相关性越低，分散越有效。</span>").format(
                 m["max_drawdown"], bench_dd, m["cagr"],
                 _cagr(r.benchmark, m.get("years", 1)), theme.TEXT_DIM))
 
@@ -403,8 +404,8 @@ class PortfolioTab(QtWidgets.QWidget):
 
         crows = []
         for (a, b), c in sorted(r.correlation.items(), key=lambda kv: kv[1]):
-            note = ("几乎不相关，分散效果好" if abs(c) < 0.3 else
-                    "中度相关" if abs(c) < 0.6 else "高度相关，分散作用有限")
+            note = (_tr("几乎不相关，分散效果好") if abs(c) < 0.3 else
+                    _tr("中度相关") if abs(c) < 0.6 else _tr("高度相关，分散作用有限"))
             crows.append([
                 cell(a, theme.TEXT, LEFT), cell(b, theme.TEXT, LEFT),
                 NumItem("{:+.2f}".format(c), c,

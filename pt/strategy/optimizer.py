@@ -12,14 +12,15 @@ from dataclasses import dataclass, field
 from ..config import Settings
 from . import backtest as bt
 from .library import REGISTRY, create
+from ..i18n import _tr
 
 METRICS = {
-    "sharpe": ("夏普比率", True),
-    "total_return": ("总收益率", True),
-    "cagr": ("年化收益", True),
-    "calmar": ("卡玛比率 (年化/回撤)", True),
-    "profit_factor": ("盈亏比", True),
-    "max_drawdown": ("最大回撤", False),      # 越小越好
+    "sharpe": (_tr("夏普比率"), True),
+    "total_return": (_tr("总收益率"), True),
+    "cagr": (_tr("年化收益"), True),
+    "calmar": (_tr("卡玛比率 (年化/回撤)"), True),
+    "profit_factor": (_tr("盈亏比"), True),
+    "max_drawdown": (_tr("最大回撤"), False),      # 越小越好
 }
 
 
@@ -82,17 +83,17 @@ def grid_search(candles: list, strategy_key: str, settings: Settings,
     if len(grid) > max_combos:
         step = len(grid) / max_combos
         grid = [grid[int(i * step)] for i in range(max_combos)]
-        note = "组合数超过上限, 已均匀抽样到 {} 组".format(len(grid))
+        note = _tr("组合数超过上限, 已均匀抽样到 {} 组").format(len(grid))
 
     cut = int(len(candles) * split)
     train_c, test_c = candles[:cut], candles[cut:]
     if len(train_c) < 60 or len(test_c) < 30:
-        return [], "K 线太少, 无法做训练/验证切分 (至少需要约 300 根)"
+        return [], _tr("K 线太少, 无法做训练/验证切分 (至少需要约 300 根)")
 
     rows = []
     for n, params in enumerate(grid):
         if should_stop and should_stop():
-            note = "已中止 (完成 {}/{} 组)".format(n, len(grid))
+            note = _tr("已中止 (完成 {}/{} 组)").format(n, len(grid))
             break
         try:
             r_tr = bt.run(train_c, create(strategy_key, **params), settings, cfg)
@@ -111,5 +112,5 @@ def grid_search(candles: list, strategy_key: str, settings: Settings,
 
     rows.sort(key=lambda r: r.score(metric), reverse=True)
     if not rows:
-        note = note or "没有产生任何有效结果, 试试放宽参数范围或延长回测区间"
+        note = note or _tr("没有产生任何有效结果, 试试放宽参数范围或延长回测区间")
     return rows, note

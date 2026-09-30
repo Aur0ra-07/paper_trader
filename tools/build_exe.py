@@ -117,32 +117,51 @@ def main():
     if not os.path.exists(exe):
         sys.exit("没有生成 exe")
 
-    # 把使用说明一起放进去
+    # 把使用说明一起放进去。
+    # 注意: 不能把标题和分隔线写成两个相邻的字符串再乘 40 —— Python 先把相邻的
+    # 字面量拼成一个再算 * 40, 结果是整个标题重复 40 遍 (以前发出去的版本就是这样)。
+    # 所以逐行放进列表, 最后统一 join + format。
+    sep = "=" * 40
+    lines = [
+        "模拟炒股 —— 免安装版", sep, "",
+        "怎么用",
+        "  双击「{name}.exe」就能打开, 不需要装任何东西。", "",
+        "打开是英文怎么办",
+        "  界面默认是英文。切成中文:",
+        "    点最上面一排的「Settings」-> 第一栏「Language / 语言」",
+        "    -> 选「中文」-> 点最下面的「Save Settings」-> 问要不要重启时点「Yes」",
+        "  以后再打开就一直是中文了。", "",
+        "这是什么",
+        "  用虚拟资金练习美股交易。股价是真实的、实时的,",
+        "  但账户里的钱是假的, 不涉及任何真实资金和券商。", "",
+        "需要联网",
+        "  行情来自网络。如果打开后价格一直是 0 或者提示加载失败,",
+        "  先运行「行情连通性自检.exe」看看网络能不能访问行情源。", "",
+        "我的账户存在哪",
+        "  %LOCALAPPDATA%\\模拟炒股\\data\\",
+        "  (在文件管理器地址栏粘贴这一行就能打开)", "",
+        "  故意不放在这个文件夹里 —— 放这儿的话, 你解压新版本",
+        "  覆盖旧文件夹, 账户就没了。放在上面那个位置, 换多少次",
+        "  版本都不受影响。", "",
+        "  程序每 20 分钟自动存一份快照到 data\\backups\\, 最近",
+        "  48 小时的全留着, 更早的每天留一份。账户出问题时用",
+        "  「账户管理… -> 备份」找回来。", "",
+        "杀毒软件报警怎么办",
+        "  PyInstaller 打包的程序有时会被误报。这个程序不联任何",
+        "  除行情之外的网, 也不修改系统设置。加信任即可。", "",
+        sep, "",
+        "Paper Trader (portable build)", "",
+        "  Double-click \"{name}.exe\" to start. Nothing to install.",
+        "  Practice US stock trading with virtual money: prices are real and",
+        "  live, the money is not. No real broker, no real funds.", "",
+        "  Language: English by default. Settings -> Language / 语言.",
+        "  Your accounts: %LOCALAPPDATA%\\模拟炒股\\data\\  (kept outside this",
+        "  folder so a new version never overwrites them; snapshots every",
+        "  20 minutes, restore from Accounts... -> Backups)",
+    ]
     readme = os.path.join(out, "使用说明.txt")
     with open(readme, "w", encoding="utf-8") as f:
-        f.write(
-            "模拟炒股 —— 免安装版\n"
-            "=" * 40 + "\n\n"
-            "怎么用\n"
-            "  双击「{}.exe」就能打开, 不需要装任何东西。\n\n"
-            "这是什么\n"
-            "  用虚拟资金练习美股交易。股价是真实的、实时的,\n"
-            "  但账户里的钱是假的, 不涉及任何真实资金和券商。\n\n"
-            "需要联网\n"
-            "  行情来自网络。如果打开后价格一直是 0 或者提示加载失败,\n"
-            "  先运行「行情连通性自检.exe」看看网络能不能访问行情源。\n\n"
-            "我的账户存在哪\n"
-            "  %LOCALAPPDATA%\\模拟炒股\\data\\\n"
-            "  (在文件管理器地址栏粘贴这一行就能打开)\n\n"
-            "  故意不放在这个文件夹里 —— 放这儿的话, 你解压新版本\n"
-            "  覆盖旧文件夹, 账户就没了。放在上面那个位置, 换多少次\n"
-            "  版本都不受影响。\n\n"
-            "  程序每 20 分钟自动存一份快照到 data\\backups\\, 最近\n"
-            "  48 小时的全留着, 更早的每天留一份。账户出问题时用\n"
-            "  「账户管理… -> 从备份恢复」找回来。\n\n"
-            "杀毒软件报警怎么办\n"
-            "  PyInstaller 打包的程序有时会被误报。这个程序不联任何\n"
-            "  除行情之外的网, 也不修改系统设置。加信任即可。\n".format(NAME))
+        f.write("\n".join(lines).format(name=NAME) + "\n")
 
     # 自检工具也拷一份进去
     nc = os.path.join(ROOT, "dist_netcheck", "行情连通性自检.exe")

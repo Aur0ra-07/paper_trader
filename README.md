@@ -1,182 +1,265 @@
-# Paper Trader — 美股模拟交易终端
+# Paper Trader — US Stock Trading Simulator
 
-真实行情 + 虚拟资金。不接入任何真实券商，不涉及真实资金。
+Real market data, virtual money. Not connected to any real broker; no real money involved.
 
-> **免责声明**
+**English** · [中文](README.zh-CN.md)
+
+![Trade tab](docs/trade.png)
+
+> **Disclaimer**
 >
-> 本项目是一个**交易模拟与回测的学习工具**，不是投资建议，也不是投资顾问服务。
-> 里面的策略、预设组合和回测结果仅用于演示软件功能，**不构成任何买卖建议**。
-> 历史回测不预示未来收益。任何据此做出的真实投资决策，风险由决策者自行承担。
+> This project is a **learning tool for trading simulation and backtesting**. It is not
+> investment advice and not an advisory service. The strategies, preset portfolios and
+> backtest results exist to demonstrate the software and **are not recommendations to buy
+> or sell anything**. Past backtest results do not predict future returns. Any real
+> investment decision made from it is entirely at the decision-maker's own risk.
 >
-> 行情来自第三方公开接口，可能有延迟、缺失或口径差异（见下文「数据来源」），
-> 不保证准确性，不得用于任何真实交易用途。
+> Market data comes from third-party public endpoints and may be delayed, incomplete or
+> adjusted differently (see *Data sources* below). Accuracy is not guaranteed, and it must
+> not be used for real trading.
 
-## 启动
-
-双击 **`启动模拟炒股.bat`**，或在本目录运行：
-
-```bash
-python main.py
-```
-
-首次运行会自动创建一个 10 万美元的保证金账户，数据保存在 `data/` 目录。
-
-## 数据来源
-
-Yahoo Finance 公开行情接口（无需 API key、无需注册）。
-
-- 报价默认每 5 秒刷新一次，含盘前 / 盘后价格
-- K 线支持 1 分 / 5 分 / 15 分 / 60 分 / 日线 / 周线
-- 免费源对部分交易所可能存在延迟，**仅供模拟练习，不构成任何投资建议**
-- 历史 K 线走**前复权**（含股息再投），否则 TLT / XLU 这类高股息标的会被严重低估
-
-## 可交易范围
-
-**全美股 + ETF（约 1 万多只），不是自选股里那 9 只。** 三种找股票的方式：
-
-1. **搜索**：交易页左上角输入代码或公司名回车，例如 `PLTR`、`BABA`、`阿里巴巴`、`nvidia`
-2. **市场页 → 实时榜单**：涨幅榜、跌幅榜、成交活跃、小盘涨幅榜、做空最多、科技成长股、低估值成长股、低估值大盘股、激进小盘股（每个榜单最多 100 只，数据缓存 90 秒）
-3. **市场页 → 板块分组**：17 个分组、385 只代码，包含科技七巨头、半导体/AI、软件互联网、中概股、指数 ETF、杠杆 ETF、银行金融、能源资源、医药生物、消费零售、航空旅游汽车、散户热门股、加密相关、国防航天、REITs、公用电力核能、道指 30 成分股
-
-市场页双击任意一行即可加入自选并跳到交易页；点表头可按价格 / 涨跌幅 / 成交量排序；「整组加入自选股」可批量导入。自选股建议控制在 60 只以内，太多会拖慢行情刷新。
-
-## 功能
-
-**交易**
-- 订单类型：市价单、限价单、止损单、止损限价单
-- 有效期：当日有效（DAY）/ 撤销前有效（GTC）
-- 四种方向：买入开多、卖出平多、融券做空、买入回补
-- 挂单在后台按每次行情推送撮合，止损触发后按市价（或转限价）成交
-
-**账户与风控**
-- 保证金账户：Reg T 近似，2 倍购买力，可做空
-- 现金账户：无杠杆，不可做空
-- PDT 日内交易者规则：净值低于 $25,000 时，5 个交易日内最多 3 次日内交易（可在设置中关闭）
-- 挂单会占用购买力，避免超额下单
-
-**成本模型**（设置里可调）
-- 佣金：按股数（IBKR 风格，$0.005/股，每笔最低 $1，上限成交额 1%）/ 每笔固定 / 零佣金
-- 卖出侧规费：SEC Section 31 费 + FINRA TAF
-- 市价单滑点：默认 2 个基点
-- 成本价含佣金与规费，盈亏口径与真实券商一致
-
-**分析**
-- 持仓浮动盈亏、盈亏比例、仓位占比
-- 净值曲线、最大回撤、胜率、盈亏比、平均盈亏
-- 成交明细，可导出 CSV
-- 多账户排行榜：新建多个账户并行测试不同策略，横向对比收益率
-
-**图表**
-- 蜡烛图 + 成交量 + MA5 / MA20 / MA60
-- 十字光标读取任意一根 K 线的 OHLC
-- 持仓成本线（金色虚线）与挂单价格线叠加显示
-
-## 策略与自动交易
-
-【策略】页有四块，按这个顺序用：
-
-**1. 回测** —— 8 个内置策略（双均线、EMA+ADX、唐奇安突破、MACD、动量、RSI 回归、布林回归、买入持有基准），
-可跑单只 / 自选股 / 任意板块。输出净值曲线、年化、夏普、索提诺、最大回撤、卡玛、胜率、盈亏比、
-持仓时间占比、累计费用，并**始终和买入持有做对照**。
-
-两条硬性保证：
-
-- **没有未来函数**：信号在第 i 根收盘算出，第 i+1 根开盘成交（有自动化测试验证截断历史后结果不变）
-- **成本和实盘一致**：佣金、规费、滑点复用同一套设置，回测收益不虚高
-
-**1b. 动量轮动** —— 机制和择时完全不同：不问"这只该不该买"，而是把一篮子标的按动量排名、永远持有最强的前 K 只、定期换马；
-开启绝对动量后，全都在跌时退回现金。基准是**等权买入持有整个篮子**，而不是 SPY——
-拿轮动去比一个它根本没参与的指数是在给自己送分。
-
-**1c. 稳健性测试** —— 把 12 个策略一次性丢到整篮子标的上跑，看跑赢家数、超额收益中位数、平均夏普。
-防止你被单只股票的漂亮回测骗了。判断标准：跑赢家数要过半、中位超额为正、平均夏普高于买入持有那一行。
-
-**1d. 滚动窗口收益分布** —— 每次回测都会给出"任意一天入场、持有 1/3/6 个月/1 年"的完整分布：
-最差、10 分位、中位、90 分位、最好、赚钱概率、赚超 50% 概率、亏超 20% 概率。
-**这是回答"几个月能赚多少"唯一诚实的方式**——看中位数和最差那两列，不要看"最好"。
-
-**1e. 杠杆与强平** —— 回测支持融资杠杆（默认年化 6% 计息），并且模拟**追加保证金强制平仓**
-（净值跌破持仓市值的 25% 就被全部卖掉）。这很重要：不模拟强平的杠杆回测会给出净值为负的荒谬结果。
-
-**1f. 组合** —— 把多个收益来源（买入持有 / 择时策略 / 动量轮动 / 现金）按权重拼成一个组合，
-定期再平衡，输出**相关性矩阵**、每一块的单独表现、组合的收益分布。内置 9 个预设：
-保守/平衡/进取/激进四档核心-卫星，外加 60/40、永久组合、全天候。支持风险平价自动分配权重
-（按波动率倒数）、融资杠杆、目标波动率。
-
-组合页会把每一块的单独表现和拼合后的结果放在一起，方便看出分散到底省下了多少回撤。
-具体数字自己跑——预设只是起点，不是推荐。
-
-**2. 参数优化** —— 网格搜索，但强制做训练/验证切分：只在前 70% 历史上搜参数，后 30% 验证。
-**按「验证集」列挑参数，不要按「训练集」挑**。两列都会显示，就是为了让你直接看见过拟合——
-训练集收益最高的那组参数，拿到没见过的数据上往往掉得很惨。
-
-**3. 自动交易** —— 把验证过的策略接到模拟账户。风控独立于策略：单票仓位上限、最多持仓数、
-单笔止损止盈、每日交易次数上限、组合回撤熔断。默认「仅给建议不下单」，确认靠谱了再切自动。
-信号只用已收盘的 K 线，每笔决策都写进日志（时间、指标读数、理由、结果）。
-
-**4. AI 建议（Claude Code）** —— 不需要 Anthropic API key，用你现有的 Claude Code 订阅：
-
-1. 点「导出简报」→ 生成 `data/ai/briefing.md`（账户、持仓、行情、技术指标、风控约束）
-2. 在 Claude Code 里说：`读一下 data/ai/briefing.md，按里面的格式把调仓建议写进 data/ai/decisions.json`
-3. 回软件点「读取 AI 建议」→ 每条建议自动校验（持仓够不够、购买力够不够、代码存不存在）
-4. 逐条确认后执行 —— 最后那个按钮永远由你按
-
-## 期权
-
-**真实行情的期权模拟交易。**【期权】页三块：
-
-**期权链** —— T 型报价表（左边 Call、右边 Put，中间行权价），每格显示买价/卖价/隐波/Delta/成交量/未平仓。
-可筛掉没流动性的合约。双击任一格选中该合约，右边立刻给出**赔率画像**：
-
-> 买 2 张 AAPL 2026-10-02 $345 Call @ ask 3.15
-> 需要付出 $631.30　盈亏平衡价 348.15（需涨 4.8%）
-> 到期变实值 26%　**真正赚钱 21%**　每天时间损耗 $35.54　最大亏损 $630（100%）
-
-价格一律用市场 bid/ask（买入吃卖价、卖出砸买价）——期权价差很宽，用中间价成交是自欺欺人。
-
-**持仓** —— 每个仓位的 Delta / Theta / 内在价值 / 时间价值 / 剩余天数，外加**组合希腊字母汇总**
-（总 Delta 等效多少股、每天 Theta 损耗多少钱）。到期自动处理：虚值作废、实值行权成正股、
-卖方被指派交货或接货。
-
-**策略组合** —— 9 个预设结构（买call/买put/现金担保put/备兑/牛市价差/熊市价差/跨式/宽跨/铁鹰），
-按当前期权链自动挑行权价，出**到期损益图**（盈亏区域填色、盈亏平衡线、当前损益虚线），
-给出净支出/收入、最大盈利、最大亏损、盈亏平衡点，可一次性下单全部腿。
-
-卖方要占保证金（Reg T 近似），备兑不额外占用，现金账户禁止裸卖。买入期权必须全额付现（期权没有抵押价值）。
-
-**做不了期权回测** —— Yahoo 拿不到已到期合约的历史（实测 6 个全部 404）。用 Black-Scholes
-合成价回测的误差实测中位 24%、虚值 51%，没有参考价值。要回测得接付费源（Polygon $29/月起），
-架构上已经预留了 `OptionDataSource` 接口。
-
-## 操作提示
-
-- 左侧搜索框输入代码或公司名后回车，双击结果加入自选股
-- 【市场】页可以浏览实时榜单和板块分组，双击一行直接开始交易
-- 自选股右键可移除、上移、下移
-- 持仓页双击某一行，会跳回交易页并预填平仓单
-- 下单面板的 25% / 50% / 75% / 100% 按钮按当前可用购买力计算股数
-
-## 目录结构
-
-```
-main.py              入口
-pt/config.py         设置与佣金/规费模型
-pt/market.py         行情客户端（报价、K 线、搜索、榜单）
-pt/universe.py       板块分组代码表与榜单定义
-pt/models.py         订单 / 成交 / 持仓 / 账户
-pt/engine.py         撮合引擎、盈亏记账、Reg T 与 PDT 风控
-pt/storage.py        账户 JSON 持久化
-pt/cache.py          K 线本地缓存（固定历史区间永久缓存）
-pt/options/          期权：定价与希腊字母、期权链、交易与到期行权
-pt/strategy/         策略库(12个)、技术指标、回测、动量轮动、参数优化、自动交易、AI 协作桥
-pt/ui/               界面（主窗口、市场页、K 线图、后台线程、主题）
-data/                账户与设置（自动生成）
-```
-
-## 依赖
+## Getting started
 
 ```bash
 pip install -r requirements.txt
+python main.py
 ```
 
-PyQt6、pyqtgraph、requests、tzdata。
+On Windows you can also double-click **`启动模拟炒股.bat`**.
+
+The first launch creates a $100,000 margin account. When run from source, data is stored in
+`data/`; the packaged `.exe` stores it in `%LOCALAPPDATA%\模拟炒股\data\` so that installing a
+new version never overwrites your accounts. A snapshot is saved automatically every 20
+minutes (everything from the last 48 hours is kept, one per day before that), and can be
+restored from **Accounts… → Backups**.
+
+### Language
+
+The interface is available in **English** (default) and **Chinese**. Switch it under
+**Settings → Language / 语言**; the change takes effect after a restart (the app offers to
+restart for you). That settings row is intentionally bilingual, so it can be found from
+either language.
+
+## Data sources
+
+Yahoo Finance public market data (no API key, no sign-up).
+
+- Quotes refresh every 5 seconds by default, including pre-market and after-hours
+- Candles: 1 min / 5 min / 15 min / 60 min / daily / weekly
+- Free data may be delayed for some exchanges. **For practice only; not investment advice.**
+- Historical candles are **dividend-adjusted**; otherwise high-yield symbols such as TLT or
+  XLU would be badly understated in backtests
+
+Yahoo has been unavailable in mainland China since November 2021, so the app falls back to
+Tencent / Eastmoney when Yahoo cannot be reached. Live quotes match Yahoo exactly, but those
+sources adjust for dividends differently, so multi-year backtests will differ. The source in
+use is always shown in the status bar.
+
+## What you can trade
+
+**All US stocks and ETFs (10,000+), not just the watchlist.** Three ways to find them:
+
+1. **Search**: type a symbol in the box at the top left of the Trade tab and press Enter
+2. **Markets → Live Lists**: top gainers, top losers, most active, small-cap gainers, most
+   shorted, growth tech, undervalued growth, undervalued large caps, aggressive small caps
+   (up to 100 each, cached for 90 seconds)
+3. **Markets → Sectors**: 20 groups such as the Magnificent Seven, semiconductors / AI,
+   software / internet, China ADRs, index ETFs, leveraged ETFs, banks, energy, healthcare,
+   consumer, travel / autos, retail favorites, crypto-related, defense, REITs, utilities and
+   the Dow 30
+
+Double-click any row on the Markets tab to add it to the watchlist and jump to the Trade tab.
+Click a column header to sort. Keeping the watchlist under about 60 symbols keeps quote
+refreshes fast.
+
+## Features
+
+**Trading**
+- Order types: market, limit, stop, stop-limit
+- Time in force: day (DAY) / good till cancelled (GTC)
+- Four sides: buy, sell, short, cover
+- Working orders are matched in the background on every quote update; stops trigger at
+  market (or convert to limit)
+
+**Accounts and risk**
+- Margin account: approximates Reg T, 2x buying power, shorting allowed
+- Cash account: no leverage, no shorting
+- Pattern day trader rule: with equity below $25,000, at most 3 day trades in 5 trading
+  days (can be turned off in Settings)
+- Open orders reserve buying power, so you cannot over-commit
+
+**Cost model** (configurable)
+- Commission: per share (IBKR style, $0.005/share, $1 minimum, capped at 1% of notional) /
+  flat per trade / zero commission
+- Sell-side regulatory fees: SEC Section 31 fee + FINRA TAF
+- Market order slippage: 2 basis points by default
+- Cost basis includes commissions and fees, so P&L matches a real broker
+
+**Analysis**
+- Unrealized P&L, P&L %, position weights
+- Equity curve, max drawdown, win rate, profit factor, average win / loss
+- Fill history with CSV export
+- Multi-account leaderboard: run several accounts side by side and compare returns
+
+**Charts**
+- Candles + volume + MA5 / MA20 / MA60
+- Crosshair readout of any candle's OHLC
+- Cost-basis line (gold dashed) and working-order price lines overlaid
+
+## Strategies and automated trading
+
+![Backtest](docs/backtest.png)
+
+The **Strategy** tab has several parts, meant to be used in this order:
+
+**1. Backtest** — 12 built-in strategies (MA crossover, EMA + ADX, RSI mean reversion,
+Bollinger reversion, Donchian breakout, MACD, momentum + long-term MA, RSI(2) dip buying,
+chandelier exit, volatility squeeze, trend + low-volatility filter, and a buy-and-hold
+benchmark), on a single symbol, the watchlist or any sector. Reports the equity curve, CAGR,
+Sharpe, Sortino, max drawdown, Calmar, win rate, profit factor, time in market and total
+fees, and **always compares against buy-and-hold**.
+
+Two hard guarantees:
+
+- **No look-ahead bias**: a signal is computed at the close of bar *i* and filled at the open
+  of bar *i+1* (an automated test checks that truncating history does not change past results)
+- **Same costs as live trading**: commissions, fees and slippage come from the same settings,
+  so backtest returns are not inflated
+
+**1b. Momentum rotation** — a different mechanism from timing: instead of asking "should I buy
+this one", it ranks a basket by momentum, always holds the strongest *K*, and rotates on a
+schedule; with absolute momentum on, it moves to cash when everything is falling. The
+benchmark is **equal-weight buy-and-hold of the same basket**, not SPY — comparing a rotation
+against an index it never traded would flatter it.
+
+**1c. Robustness test** — runs every strategy across a whole basket at once and reports how
+many symbols it beats, the median excess return and the average Sharpe. This keeps you from
+being fooled by one great single-stock backtest. What to look for: clearly more than half
+win, a positive median excess, and an average Sharpe above the buy-and-hold row.
+
+**1d. Rolling-window return distribution** — every backtest shows the full distribution of
+"enter on any day, hold for 1 / 3 / 6 months / 1 year": worst, 10th percentile, median, 90th
+percentile, best, P(gain), P(gain > 50%), P(loss > 20%). **This is the only honest way to
+answer "how much can I make in a few months"** — look at the median and the worst columns,
+not the best.
+
+**1e. Leverage and liquidation** — backtests support margin (6% annual interest by default)
+and simulate **margin-call liquidation** (everything is sold when equity falls below 25% of
+position value). This matters: a leveraged backtest without liquidation can show a negative
+account balance, which cannot happen in reality.
+
+**1f. Portfolio** — combines several return streams (buy-and-hold / timing strategy /
+momentum rotation / cash) by weight, rebalances on a schedule, and shows a **correlation
+matrix**, each sleeve's own performance and the portfolio's return distribution. 9 presets
+are included: four core-satellite levels plus 60/40, the Permanent Portfolio and an
+All-Weather approximation. Supports risk-parity weights (inverse volatility), leverage and a
+volatility target. The presets are starting points, not recommendations — run the numbers
+yourself.
+
+**2. Optimize** — grid search with a mandatory train / validation split: parameters are
+searched on the first 70% of history and validated on the last 30%. **Pick parameters by the
+Validation column, not the Train column.** Both are shown so that overfitting is visible: the
+best-looking training result often falls apart on data it has not seen.
+
+**3. Auto trading** — connects a validated strategy to the paper account. Risk control sits
+outside the strategy: per-symbol position cap, max positions, per-trade stop-loss /
+take-profit, daily trade limit and a portfolio drawdown circuit breaker. It defaults to
+"advice only, no orders"; switch to automatic once you trust it. Signals use only closed
+candles, and every decision is logged (time, indicator readings, reason, result).
+
+**4. AI suggestions (Claude Code)** — no Anthropic API key needed; it uses your existing Claude
+Code subscription:
+
+1. Click **Export Briefing** → writes `data/ai/briefing.md` (account, positions, quotes,
+   technical indicators, risk limits)
+2. In Claude Code, say: `Read data/ai/briefing.md and write your rebalancing suggestions to
+   data/ai/decisions.json in the format it describes`
+3. Back in the app, click **Load AI Suggestions** → every suggestion is validated (enough
+   shares, enough buying power, valid symbol)
+4. Confirm each one before it executes — you always press the final button
+
+## Options
+
+**Paper trading for options on real market data.** The **Options** tab has three parts:
+
+**Option chain** — the usual T layout (calls on the left, puts on the right, strikes in the
+middle), with bid / ask / IV / delta / volume / open interest in each cell. Illiquid contracts
+can be filtered out. Select a contract and the right side shows its **odds profile**:
+
+> Buy 2 AAPL 2026-10-02 $345 Call @ ask 3.15
+> You pay $631.30　Breakeven 348.15 (the stock needs to rise 4.8%)
+> Finishes ITM 26%　**Actually profitable 21%**　Time decay per day $35.54　Max loss $630 (100%)
+
+Prices always use the market bid / ask (buys pay the ask, sells hit the bid). Option spreads
+are wide, and filling at the midpoint would be fooling yourself.
+
+**Positions** — delta / theta / intrinsic value / time value / days left for each position,
+plus **portfolio Greeks** (total delta as a share equivalent, theta decay per day in dollars).
+Expiration is handled automatically: out-of-the-money contracts expire worthless,
+in-the-money contracts are exercised into stock, and short positions are assigned.
+
+**Strategy builder** — 9 preset structures (long call, long put, cash-secured put, covered
+call, bull call spread, bear put spread, straddle, strangle, iron condor). Strikes are picked
+from the current chain automatically, and it draws a **payoff-at-expiry chart** (shaded
+profit / loss areas, breakeven lines, current P&L as a dashed line), with net debit / credit,
+max profit, max loss and breakevens. All legs can be placed in one go.
+
+Short options require margin (approximating Reg T); covered calls need none extra, and cash
+accounts cannot write naked options. Buying options must be paid in full (options have no
+loan value).
+
+**Option backtesting is not possible** — Yahoo does not provide history for expired contracts
+(all 404 in testing). Backtesting on Black-Scholes prices synthesized from historical
+volatility gave a median error of 24% (51% out of the money), which is not useful. A paid
+source would be needed (Polygon from $29/month); the `OptionDataSource` interface is already
+in place for it.
+
+## Tips
+
+- Type a symbol in the search box and press Enter; double-click a result to add it to the
+  watchlist
+- The **Markets** tab has live lists and sectors; double-click a row to start trading it
+- Right-click the watchlist to remove or reorder symbols
+- Double-click a row on the Positions tab to jump to the Trade tab with a closing order filled in
+- The 25% / 50% / 75% / 100% buttons size the order from your current buying power
+
+## Project layout
+
+```
+main.py              entry point
+pt/config.py         settings, commission and fee model
+pt/i18n.py           interface language: _tr() translates, N_() marks without translating
+pt/lang/             English translation tables (keys are the Chinese source strings)
+pt/market.py         market data client (quotes, candles, search, lists)
+pt/eastmoney.py      mainland China fallback sources (Tencent / Eastmoney)
+pt/universe.py       sector groups and list definitions
+pt/models.py         orders / fills / positions / accounts
+pt/engine.py         matching engine, P&L accounting, Reg T and PDT rules
+pt/storage.py        account persistence (atomic writes, fsync, automatic snapshots)
+pt/cache.py          local candle cache
+pt/options/          options: pricing and Greeks, chains, trading and expiration
+pt/strategy/         strategies, indicators, backtests, rotation, optimization,
+                     walk-forward validation, auto trading, AI bridge
+pt/ui/               interface (main window, markets, charts, workers, theme)
+tools/check_lang.py  translation checker (missing entries, mismatched placeholders)
+tools/build_exe.py   packages a standalone Windows build
+data/                accounts and settings (generated automatically)
+```
+
+## Adding interface text
+
+Write any user-facing Chinese text as `_tr("中文")` and add the English line to the matching
+file under `pt/lang/`. Then run:
+
+```bash
+python tools/check_lang.py
+```
+
+It reports missing translations, mismatched `{}` / `%s` placeholders (it actually formats
+each translation with dummy arguments), and leftover Chinese. Names that are saved to disk
+or used as lookup keys use `N_("中文")` instead, and are translated only when displayed —
+see rule 18 in `CLAUDE.md`.
+
+## Requirements
+
+PyQt6, pyqtgraph, requests, tzdata — see `requirements.txt`.

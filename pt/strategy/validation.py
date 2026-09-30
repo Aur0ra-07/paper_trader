@@ -24,6 +24,7 @@ from __future__ import annotations
 import math
 from dataclasses import dataclass, field
 from statistics import NormalDist
+from ..i18n import _tr
 
 EULER = 0.5772156649015329          # Euler-Mascheroni 常数
 _N = NormalDist()
@@ -159,13 +160,13 @@ def walk_forward(curves: dict, train_bars: int = 1260, test_bars: int = 252,
     关键: 第 k 段测试期的配置, 只用第 k 段**开始之前**的数据挑出来。
     """
     if not curves:
-        return WFResult(error="没有候选配置")
+        return WFResult(error=_tr("没有候选配置"))
     score = score or sharpe_raw
     names = sorted(curves)
     rets = {k: to_returns(curves[k]) for k in names}
     n = min(len(rets[k]) for k in names)
     if n < train_bars + test_bars:
-        return WFResult(error="数据太短: %d 根, 至少需要 %d 根" % (n, train_bars + test_bars))
+        return WFResult(error=_tr("数据太短: %d 根, 至少需要 %d 根") % (n, train_bars + test_bars))
     ts_axis = [t for t, _ in rets[names[0]][:n]]
     series = {k: [r for _, r in rets[k][:n]] for k in names}
 

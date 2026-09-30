@@ -21,6 +21,7 @@ from ..config import DATA_DIR
 from ..engine import ET, et_date
 from ..models import SIDE_CN, BUY, SELL, SHORT, COVER
 from . import indicators as ind
+from ..i18n import _tr
 
 AI_DIR = os.path.join(DATA_DIR, "ai")
 BRIEFING_PATH = os.path.join(AI_DIR, "briefing.md")
@@ -105,58 +106,58 @@ def export_briefing(account, engine, quotes: dict, prices: dict,
 
     now = datetime.now(ET)
     sample = next(iter(quotes.values()), None)
-    state = {"REGULAR": "交易中", "PRE": "盘前", "POST": "盘后",
-             "CLOSED": "休市"}.get(sample.market_state if sample else "CLOSED", "未知")
+    state = {"REGULAR": _tr("交易中"), "PRE": _tr("盘前"), "POST": _tr("盘后"),
+             "CLOSED": _tr("休市")}.get(sample.market_state if sample else "CLOSED", _tr("未知"))
 
     eq = account.equity(prices)
     stats = engine.stats(prices)
     L = []
     A = L.append
 
-    A("# 模拟交易账户简报")
+    A(_tr("# 模拟交易账户简报"))
     A("")
-    A("> 这是一个**模拟盘**（虚拟资金，不接任何真实券商）。行情是真的，钱是假的。")
-    A("> 请基于下面的数据给出调仓建议，写入 `data/ai/decisions.json`（格式见文末）。")
+    A(_tr("> 这是一个**模拟盘**（虚拟资金，不接任何真实券商）。行情是真的，钱是假的。"))
+    A(_tr("> 请基于下面的数据给出调仓建议，写入 `data/ai/decisions.json`（格式见文末）。"))
     A("")
-    A("- 生成时间：{}（纽约时间），市场状态：**{}**".format(
+    A(_tr("- 生成时间：{}（纽约时间），市场状态：**{}**").format(
         now.strftime("%Y-%m-%d %H:%M:%S"), state))
-    A("- 账户：{}（{}）".format(
-        account.name, "保证金账户 2x" if account.account_type == "MARGIN" else "现金账户"))
+    A(_tr("- 账户：{}（{}）").format(
+        account.name, _tr("保证金账户 2x") if account.account_type == "MARGIN" else _tr("现金账户")))
     A("")
 
     # ---------------- 账户 ----------------
-    A("## 1. 账户状态")
+    A(_tr("## 1. 账户状态"))
     A("")
-    A("| 项目 | 数值 |")
+    A(_tr("| 项目 | 数值 |"))
     A("|---|---|")
-    A("| 总资产 | ${:,.2f} |".format(eq))
-    A("| 初始资金 | ${:,.2f} |".format(account.initial_cash))
-    A("| 总收益率 | {:+.2f}% |".format(account.total_return_pct(prices)))
-    A("| 可用现金 | ${:,.2f} |".format(account.cash))
-    A("| 购买力 | ${:,.2f} |".format(account.buying_power(prices)))
-    A("| 持仓市值 | ${:,.2f} |".format(account.positions_value(prices)))
-    A("| 浮动盈亏 | ${:+,.2f} |".format(account.unrealized_total(prices)))
-    A("| 已实现盈亏 | ${:+,.2f} |".format(account.realized_total()))
-    A("| 累计费用 | ${:,.2f} |".format(account.fees_total()))
-    A("| 胜率 / 平仓次数 | {:.0f}% / {} |".format(stats["win_rate"], stats["closed_trades"]))
-    A("| 最大回撤 | {:.2f}% |".format(stats["max_drawdown"]))
-    A("| 近5日日内交易 | {} 次（PDT 上限 3 次，净值 <$25k 时生效）|".format(stats["day_trades"]))
+    A(_tr("| 总资产 | ${:,.2f} |").format(eq))
+    A(_tr("| 初始资金 | ${:,.2f} |").format(account.initial_cash))
+    A(_tr("| 总收益率 | {:+.2f}% |").format(account.total_return_pct(prices)))
+    A(_tr("| 可用现金 | ${:,.2f} |").format(account.cash))
+    A(_tr("| 购买力 | ${:,.2f} |").format(account.buying_power(prices)))
+    A(_tr("| 持仓市值 | ${:,.2f} |").format(account.positions_value(prices)))
+    A(_tr("| 浮动盈亏 | ${:+,.2f} |").format(account.unrealized_total(prices)))
+    A(_tr("| 已实现盈亏 | ${:+,.2f} |").format(account.realized_total()))
+    A(_tr("| 累计费用 | ${:,.2f} |").format(account.fees_total()))
+    A(_tr("| 胜率 / 平仓次数 | {:.0f}% / {} |").format(stats["win_rate"], stats["closed_trades"]))
+    A(_tr("| 最大回撤 | {:.2f}% |").format(stats["max_drawdown"]))
+    A(_tr("| 近5日日内交易 | {} 次（PDT 上限 3 次，净值 <$25k 时生效）|").format(stats["day_trades"]))
     A("")
 
     # ---------------- 持仓 ----------------
-    A("## 2. 当前持仓")
+    A(_tr("## 2. 当前持仓"))
     A("")
     positions = account.open_positions()
     if not positions:
-        A("*当前空仓。*")
+        A(_tr("*当前空仓。*"))
     else:
-        A("| 代码 | 方向 | 股数 | 成本 | 现价 | 市值 | 浮动盈亏 | 盈亏% | 占净值 | 持有天数 |")
+        A(_tr("| 代码 | 方向 | 股数 | 成本 | 现价 | 市值 | 浮动盈亏 | 盈亏% | 占净值 | 持有天数 |"))
         A("|---|---|---|---|---|---|---|---|---|---|")
         for p in sorted(positions, key=lambda x: x.symbol):
             px = prices.get(p.symbol) or p.avg_cost
             days = max(int((time.time() - p.opened_at) / 86400), 0)
             A("| {} | {} | {:,} | {:.2f} | {:.2f} | ${:,.0f} | ${:+,.0f} | {:+.2f}% | {:.1f}% | {} |".format(
-                p.symbol, "空头" if p.is_short else "多头", p.abs_qty, p.avg_cost, px,
+                p.symbol, _tr("空头") if p.is_short else _tr("多头"), p.abs_qty, p.avg_cost, px,
                 abs(p.market_value(px)), p.unrealized(px), p.unrealized_pct(px),
                 abs(p.market_value(px)) / eq * 100 if eq else 0, days))
     A("")
@@ -164,9 +165,9 @@ def export_briefing(account, engine, quotes: dict, prices: dict,
     # ---------------- 挂单 ----------------
     open_orders = account.open_orders()
     if open_orders:
-        A("## 3. 未成交挂单")
+        A(_tr("## 3. 未成交挂单"))
         A("")
-        A("| 代码 | 内容 | 挂单时间 |")
+        A(_tr("| 代码 | 内容 | 挂单时间 |"))
         A("|---|---|---|")
         for o in open_orders:
             A("| {} | {} | {} |".format(
@@ -175,12 +176,12 @@ def export_briefing(account, engine, quotes: dict, prices: dict,
         A("")
 
     # ---------------- 行情 + 指标 ----------------
-    A("## 4. 关注标的行情与技术指标")
+    A(_tr("## 4. 关注标的行情与技术指标"))
     A("")
-    A("`vs MA` 为正表示价格在均线上方；`布林位置` 0=下轨 100=上轨；"
-      "`ATR%` 为日均波动幅度；`ADX` >25 表示趋势明确。")
+    A(_tr("`vs MA` 为正表示价格在均线上方；`布林位置` 0=下轨 100=上轨；"
+      "`ATR%` 为日均波动幅度；`ADX` >25 表示趋势明确。"))
     A("")
-    A("| 代码 | 现价 | 今日 | RSI14 | vs MA20 | vs MA50 | vs MA200 | 布林位置 | ADX | ATR% | 20日动量 | 距52周高 |")
+    A(_tr("| 代码 | 现价 | 今日 | RSI14 | vs MA20 | vs MA50 | vs MA200 | 布林位置 | ADX | ATR% | 20日动量 | 距52周高 |"))
     A("|---|---|---|---|---|---|---|---|---|---|---|---|")
     for sym in sorted(quotes):
         q = quotes[sym]
@@ -197,9 +198,9 @@ def export_briefing(account, engine, quotes: dict, prices: dict,
     # ---------------- 最近成交 ----------------
     recent = sorted(account.trades, key=lambda t: -t.ts)[:15]
     if recent:
-        A("## 5. 最近成交")
+        A(_tr("## 5. 最近成交"))
         A("")
-        A("| 时间 | 代码 | 方向 | 股数 | 价格 | 已实现盈亏 |")
+        A(_tr("| 时间 | 代码 | 方向 | 股数 | 价格 | 已实现盈亏 |"))
         A("|---|---|---|---|---|---|")
         for t in recent:
             A("| {} | {} | {} | {:,} | {:.2f} | {} |".format(
@@ -209,36 +210,36 @@ def export_briefing(account, engine, quotes: dict, prices: dict,
         A("")
 
     # ---------------- 约束 ----------------
-    A("## 6. 必须遵守的约束")
+    A(_tr("## 6. 必须遵守的约束"))
     A("")
     if auto_config is not None:
         lim = auto_config.limits()
-        A("- 单只标的最多占净值 **{:.0f}%**".format(lim.max_position_pct))
-        A("- 最多同时持有 **{} 只**".format(lim.max_positions))
-        A("- 每日最多 **{} 笔**交易".format(lim.max_trades_per_day))
-        A("- 做空：{}".format("允许" if lim.allow_short else "**不允许**"))
-    A("- 可用购买力 **${:,.2f}**，不要给出超出购买力的建议".format(
+        A(_tr("- 单只标的最多占净值 **{:.0f}%**").format(lim.max_position_pct))
+        A(_tr("- 最多同时持有 **{} 只**").format(lim.max_positions))
+        A(_tr("- 每日最多 **{} 笔**交易").format(lim.max_trades_per_day))
+        A(_tr("- 做空：{}").format(_tr("允许") if lim.allow_short else _tr("**不允许**")))
+    A(_tr("- 可用购买力 **${:,.2f}**，不要给出超出购买力的建议").format(
         account.buying_power(prices)))
-    A("- 卖出/回补的股数不能超过现有持仓")
-    A("- 账户净值低于 $25,000 时，5 个交易日内最多 3 次日内交易（当日买当日卖）")
+    A(_tr("- 卖出/回补的股数不能超过现有持仓"))
+    A(_tr("- 账户净值低于 $25,000 时，5 个交易日内最多 3 次日内交易（当日买当日卖）"))
     if backtest_note:
         A("")
-        A("**回测参考**：{}".format(backtest_note))
+        A(_tr("**回测参考**：{}").format(backtest_note))
     A("")
 
     # ---------------- 输出格式 ----------------
-    A("## 7. 请输出的格式")
+    A(_tr("## 7. 请输出的格式"))
     A("")
-    A("把建议写入 `data/ai/decisions.json`，覆盖原文件：")
+    A(_tr("把建议写入 `data/ai/decisions.json`，覆盖原文件："))
     A("")
     A("```json")
     A(json.dumps({
         "generated_at": now.strftime("%Y-%m-%dT%H:%M:%S"),
-        "note": "一句话总结本次调仓思路",
+        "note": _tr("一句话总结本次调仓思路"),
         "decisions": [
             {"symbol": "AAPL", "action": "BUY", "qty": 50,
              "order_type": "MARKET", "limit_price": 0,
-             "confidence": 0.7, "reason": "为什么这么做，引用上面表格里的具体数字"},
+             "confidence": 0.7, "reason": _tr("为什么这么做，引用上面表格里的具体数字")},
             {"symbol": "TSLA", "action": "SELL", "qty": 20,
              "order_type": "LIMIT", "limit_price": 370.5,
              "confidence": 0.5, "reason": "……"}
@@ -246,10 +247,10 @@ def export_briefing(account, engine, quotes: dict, prices: dict,
     }, ensure_ascii=False, indent=2))
     A("```")
     A("")
-    A("- `action` 只能是 `BUY`(买入开多) / `SELL`(卖出平多) / `SHORT`(做空) / `COVER`(买入回补)")
-    A("- `order_type` 为 `MARKET` 或 `LIMIT`；用 `LIMIT` 时必须给 `limit_price`")
-    A("- 不需要调仓就返回空的 `decisions` 数组，并在 `note` 里说明为什么按兵不动")
-    A("- `reason` 要具体，引用上面的指标数字，不要写“看起来不错”这类空话")
+    A(_tr("- `action` 只能是 `BUY`(买入开多) / `SELL`(卖出平多) / `SHORT`(做空) / `COVER`(买入回补)"))
+    A(_tr("- `order_type` 为 `MARKET` 或 `LIMIT`；用 `LIMIT` 时必须给 `limit_price`"))
+    A(_tr("- 不需要调仓就返回空的 `decisions` 数组，并在 `note` 里说明为什么按兵不动"))
+    A(_tr("- `reason` 要具体，引用上面的指标数字，不要写“看起来不错”这类空话"))
 
     text = "\n".join(L)
     with open(path, "w", encoding="utf-8") as f:
@@ -262,19 +263,19 @@ def load_decisions(account, engine, prices: dict, path: str = "") -> tuple:
     """读取 Claude 写的 decisions.json。返回 (决策列表, 备注, 错误)。"""
     path = path or DECISIONS_PATH
     if not os.path.exists(path):
-        return [], "", "还没有 decisions.json —— 先导出简报, 让 Claude 读完写一份"
+        return [], "", _tr("还没有 decisions.json —— 先导出简报, 让 Claude 读完写一份")
     try:
         with open(path, encoding="utf-8") as f:
             raw = json.load(f)
     except (OSError, json.JSONDecodeError) as exc:
-        return [], "", "decisions.json 解析失败: {}".format(exc)
+        return [], "", _tr("decisions.json 解析失败: {}").format(exc)
 
     if not isinstance(raw, dict):
-        return [], "", "decisions.json 顶层必须是一个 JSON 对象"
+        return [], "", _tr("decisions.json 顶层必须是一个 JSON 对象")
     note = str(raw.get("note") or "")
     items = raw.get("decisions")
     if not isinstance(items, list):
-        return [], note, "decisions 字段必须是数组"
+        return [], note, _tr("decisions 字段必须是数组")
 
     out = []
     for it in items:
@@ -301,31 +302,31 @@ def load_decisions(account, engine, prices: dict, path: str = "") -> tuple:
 
         # -- 校验 --
         if not d.symbol:
-            d.error = "缺少 symbol"
+            d.error = _tr("缺少 symbol")
         elif d.action not in VALID_ACTIONS:
-            d.error = "action 无效: {}".format(d.action or "(空)")
+            d.error = _tr("action 无效: {}").format(d.action or _tr("(空)"))
         elif d.qty < 1:
-            d.error = "qty 必须是正整数"
+            d.error = _tr("qty 必须是正整数")
         elif d.order_type not in ("MARKET", "LIMIT"):
-            d.error = "order_type 只能是 MARKET 或 LIMIT"
+            d.error = _tr("order_type 只能是 MARKET 或 LIMIT")
         elif d.order_type == "LIMIT" and d.limit_price <= 0:
-            d.error = "限价单必须给出 limit_price"
+            d.error = _tr("限价单必须给出 limit_price")
         else:
             pos = engine.position(d.symbol)
             if d.action == SELL and d.qty > pos.qty:
-                d.error = "只持有 {} 股多头, 卖不了 {} 股".format(max(pos.qty, 0), d.qty)
+                d.error = _tr("只持有 {} 股多头, 卖不了 {} 股").format(max(pos.qty, 0), d.qty)
             elif d.action == COVER and d.qty > pos.abs_qty:
-                d.error = "只持有 {} 股空头, 回补不了 {} 股".format(
+                d.error = _tr("只持有 {} 股空头, 回补不了 {} 股").format(
                     pos.abs_qty if pos.qty < 0 else 0, d.qty)
             elif d.action in (BUY, SHORT):
                 px = prices.get(d.symbol, 0.0)
                 if px <= 0:
                     # 没有行情 = 代码不存在或没在关注列表里, 不能放行
-                    d.error = "拿不到 {} 的行情, 无法校验 (代码写错了?)".format(d.symbol)
+                    d.error = _tr("拿不到 {} 的行情, 无法校验 (代码写错了?)").format(d.symbol)
                 else:
                     avail = account.buying_power(prices) - engine.reserved_buying_power()
                     if d.qty * px > avail:
-                        d.error = "需要 ${:,.0f}, 可用购买力只有 ${:,.0f}".format(
+                        d.error = _tr("需要 ${:,.0f}, 可用购买力只有 ${:,.0f}").format(
                             d.qty * px, max(avail, 0))
         out.append(d)
     return out, note, ""

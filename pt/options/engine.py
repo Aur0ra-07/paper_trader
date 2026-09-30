@@ -22,6 +22,16 @@ from .models import (
     parse_occ,
 )
 from .pricing import CALL, PUT, intrinsic
+from ..i18n import _tr
+
+# 期权结算 note 的关键词。判断用的是**存盘的显示文字**, 所以中英文都得列上。
+EXPIRED_MARKS = ("作废", "expired worthless")
+DELIVER_MARKS = ("交割", "deliver")
+
+
+def _has_mark(note, marks) -> bool:
+    low = (note or "").lower()
+    return any(m in low for m in marks)
 
 MARKET = "MARKET"
 LIMIT = "LIMIT"
@@ -108,17 +118,17 @@ class OptionsEngine:
                  prices: dict, spots: dict) -> None:
         acc = self.account
         if order.qty <= 0:
-            raise OptionRejectError("合约张数必须是正整数")
+            raise OptionRejectError(_tr("合约张数必须是正整数"))
         if quote is None:
-            raise OptionRejectError("拿不到 {} 的报价".format(order.symbol))
+            raise OptionRejectError(_tr("拿不到 {} 的报价").format(order.symbol))
         px = quote.fill_price(order.side)
         if px <= 0:
-            raise OptionRejectError("该合约没有有效报价 (bid {:.2f} / ask {:.2f})".format(
+            raise OptionRejectError(_tr("该合约没有有效报价 (bid {:.2f} / ask {:.2f})").format(
                 quote.bid, quote.ask))
         if quote.expiry < et_date(time.time()):
-            raise OptionRejectError("该合约已于 {} 到期".format(quote.expiry))
+            raise OptionRejectError(_tr("该合约已于 {} 到期").format(quote.expiry))
         if order.order_type == LIMIT and order.limit_price <= 0:
-            raise OptionRejectError("限价必须大于 0")
+            raise OptionRejectError(_tr("限价必须大于 0"))
 
         pos = self.position(order.symbol)
         pending = sum(o.qty for o in acc.open_option_orders()
@@ -126,19 +136,19 @@ class OptionsEngine:
 
         if order.side == SELL_CLOSE:
             if pos.qty <= 0:
-                raise OptionRejectError("没有 {} 的买方持仓可卖出".format(order.symbol))
+                raise OptionRejectError(_tr("没有 {} 的买方持仓可卖出").format(order.symbol))
             if order.qty + pending > pos.qty:
-                raise OptionRejectError("可平 {} 张 (持有 {}, 挂单占用 {})".format(
+                raise OptionRejectError(_tr("可平 {} 张 (持有 {}, 挂单占用 {})").format(
                     pos.qty - pending, pos.qty, pending))
         elif order.side == BUY_CLOSE:
             if pos.qty >= 0:
-                raise OptionRejectError("没有 {} 的卖方持仓可买回".format(order.symbol))
+                raise OptionRejectError(_tr("没有 {} 的卖方持仓可买回").format(order.symbol))
             if order.qty + pending > pos.abs_qty:
-                raise OptionRejectError("可平 {} 张 (义务 {}, 挂单占用 {})".format(
+                raise OptionRejectError(_tr("可平 {} 张 (义务 {}, 挂单占用 {})").format(
                     pos.abs_qty - pending, pos.abs_qty, pending))
         elif order.side == BUY_OPEN:
             if pos.qty < 0:
-                raise OptionRejectError("当前是卖方持仓, 请先「买入平仓」")
+                raise OptionRejectError(_tr("当前是卖方持仓, 请先「买入平仓」"))
             cost = px * order.qty * quote.multiplier + self.commission(order.qty)
             # Reg T: 买入期权不能用融资, 必须全额付现 (期权没有抵押价值)
             reserved = sum(o.qty * (o.limit_price or 0) * o.multiplier
@@ -146,17 +156,17 @@ class OptionsEngine:
             avail = acc.cash - reserved
             if cost > avail + 1e-6:
                 raise OptionRejectError(
-                    "现金不足: 需要 ${:,.2f}, 可用现金 ${:,.2f} "
-                    "(买入期权不能用融资, 必须全额付现)".format(cost, max(avail, 0)))
+                    _tr("现金不足: 需要 ${:,.2f}, 可用现金 ${:,.2f} "
+                    "(买入期权不能用融资, 必须全额付现)").format(cost, max(avail, 0)))
         elif order.side == SELL_OPEN:
             if pos.qty > 0:
-                raise OptionRejectError("当前是买方持仓, 请先「卖出平仓」")
+                raise OptionRejectError(_tr("当前是买方持仓, 请先「卖出平仓」"))
             if acc.account_type == "CASH" and quote.right == CALL:
                 stock = acc.positions.get(quote.underlying)
                 covered = int((stock.qty if stock else 0) // quote.multiplier)
                 if order.qty > covered:
                     raise OptionRejectError(
-                        "现金账户只能做备兑开仓: 需要持有 {} 股 {}, 当前只有 {} 股".format(
+                        _tr("现金账户只能做备兑开仓: 需要持有 {} 股 {}, 当前只有 {} 股").format(
                             order.qty * quote.multiplier, quote.underlying,
                             stock.qty if stock else 0))
             probe = OptionPosition(
@@ -169,9 +179,9 @@ class OptionsEngine:
             avail = self.buying_power(prices, spots)
             if need > avail + 1e-6:
                 raise OptionRejectError(
-                    "卖方保证金不足: 需要 ${:,.2f}, 可用购买力 ${:,.2f}".format(need, max(avail, 0)))
+                    _tr("卖方保证金不足: 需要 ${:,.2f}, 可用购买力 ${:,.2f}").format(need, max(avail, 0)))
         else:
-            raise OptionRejectError("未知方向: {}".format(order.side))
+            raise OptionRejectError(_tr("未知方向: {}").format(order.side))
 
     # ------------------------------------------------------------------
     def submit(self, order: OptionOrder, quote: OptionQuote,
@@ -188,11 +198,11 @@ class OptionsEngine:
         self.account.option_orders.append(order)
         if order.order_type == LIMIT:
             if not self._limit_hit(order, quote):
-                return True, "已挂单: {}".format(order.describe())
+                return True, _tr("已挂单: {}").format(order.describe())
             self._execute(order, quote, self._limit_fill(order, quote))
         else:
             self._execute(order, quote, quote.fill_price(order.side))
-        return True, "成交: {} {} 张 @ ${:.2f}  (总额 ${:,.2f})".format(
+        return True, _tr("成交: {} {} 张 @ ${:.2f}  (总额 ${:,.2f})").format(
             OPT_SIDE_CN.get(order.side, order.side), order.qty, order.fill_price,
             order.fill_price * order.qty * order.multiplier)
 
@@ -215,7 +225,7 @@ class OptionsEngine:
                 continue
             if q.expiry < et_date(time.time()):
                 o.status = "EXPIRED"
-                o.note = "合约已到期, 挂单作废"
+                o.note = _tr("合约已到期, 挂单作废")
                 o.updated_at = time.time()
                 continue
             if o.order_type == LIMIT and not self._limit_hit(o, q):
@@ -297,7 +307,7 @@ class OptionsEngine:
                 continue
             spot = spots.get(pos.underlying, 0.0)
             if spot <= 0:
-                logs.append("{} 到期但拿不到 {} 的价格, 本次跳过".format(
+                logs.append(_tr("{} 到期但拿不到 {} 的价格, 本次跳过").format(
                     pos.symbol, pos.underlying))
                 continue
             logs.append(self._settle(pos, spot, exp))
@@ -314,11 +324,11 @@ class OptionsEngine:
         # --- 虚值: 作废 ---
         if intr <= 0.005:
             realized = pos.apply_close(n, 0.0, 0.0)
-            note = "到期作废 (结算价 {:.2f} vs 行权价 {:g})".format(spot, pos.strike)
+            note = _tr("到期作废 (结算价 {:.2f} vs 行权价 {:g})").format(spot, pos.strike)
             self._log_settlement(pos, 0.0, realized, note)
-            side = "买方权利金全亏" if long_side else "卖方权利金全赚"
-            return "{} {} 到期作废 —— {} ${:,.2f}".format(
-                pos.symbol, "多头" if long_side else "空头", side, abs(realized))
+            side = _tr("买方权利金全亏") if long_side else _tr("卖方权利金全赚")
+            return _tr("{} {} 到期作废 —— {} ${:,.2f}").format(
+                pos.symbol, _tr("多头") if long_side else _tr("空头"), side, abs(realized))
 
         # --- 实值: 先按内在价值平掉期权腿 ---
         cash_needed = 0.0
@@ -343,9 +353,9 @@ class OptionsEngine:
             acc.cash -= intr * shares
 
         if not can_deliver:
-            note = "到期实值, 资金不足无法交割 -> 按内在价值 {:.2f} 现金结算".format(intr)
+            note = _tr("到期实值, 资金不足无法交割 -> 按内在价值 {:.2f} 现金结算").format(intr)
             self._log_settlement(pos, intr, realized, note)
-            return "{} 到期实值但资金不足, 已按内在价值现金结算 ({:+,.2f})".format(
+            return _tr("{} 到期实值但资金不足, 已按内在价值现金结算 ({:+,.2f})").format(
                 pos.symbol, realized)
 
         # --- 实物交割: 转成正股持仓 ---
@@ -359,11 +369,11 @@ class OptionsEngine:
             stock_side, stock_qty, direction = BUY, shares, +1
 
         self._deliver(pos.underlying, stock_side, stock_qty, pos.strike, direction, intr)
-        note = "到期实值, 按行权价 {:g} {}交割 {} 股".format(
-            pos.strike, "买入" if direction > 0 else "卖出", stock_qty)
+        note = _tr("到期实值, 按行权价 {:g} {}交割 {} 股").format(
+            pos.strike, _tr("买入") if direction > 0 else _tr("卖出"), stock_qty)
         self._log_settlement(pos, intr, realized, note)
-        return "{} 到期行权 —— 以 {:g} {} {} 股 {} (期权腿盈亏 {:+,.2f})".format(
-            pos.symbol, pos.strike, "买入" if direction > 0 else "卖出",
+        return _tr("{} 到期行权 —— 以 {:g} {} {} 股 {} (期权腿盈亏 {:+,.2f})").format(
+            pos.symbol, pos.strike, _tr("买入") if direction > 0 else _tr("卖出"),
             stock_qty, pos.underlying, realized)
 
     def _deliver(self, underlying: str, side: str, shares: int, strike: float,
@@ -410,8 +420,11 @@ class OptionsEngine:
         acc = self.account
         closed = [t for t in acc.option_trades if t.side in OPT_CLOSING]
         wins = [t for t in closed if t.realized_pnl > 0]
-        expired = [t for t in closed if "作废" in (t.note or "")]
-        exercised = [t for t in closed if "交割" in (t.note or "")]
+        # note 是存盘的显示文字: 老交易是中文, 切到英文后的新交易是英文。
+        # 两种都要认, 否则换了语言统计会悄悄漏掉一半。英文译文里必须含这两组
+        # 关键词 —— lang 的校验会检查。
+        expired = [t for t in closed if _has_mark(t.note, EXPIRED_MARKS)]
+        exercised = [t for t in closed if _has_mark(t.note, DELIVER_MARKS)]
         return {
             "positions": len(acc.open_option_positions()),
             "margin_used": total_option_margin(acc, spots),

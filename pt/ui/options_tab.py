@@ -17,33 +17,34 @@ from ..options.pricing import CALL, PUT
 from . import theme
 from .panels import Card, NumItem, make_table, cell, fill_table, LEFT, RIGHT, CENTER
 from .payoff import PayoffChart
+from ..i18n import _tr
 
 MARKET, LIMIT = "MARKET", "LIMIT"
 
 # 期权链表格列
 # 双边对照 (券商常见的 T 型链): 认购在左、行权价居中、认沽在右
-CHAIN_COLS = ["未平仓", "成交量", "Delta", "隐波", "买价", "卖价",
-              "行权价",
-              "买价", "卖价", "隐波", "Delta", "成交量", "未平仓"]
+CHAIN_COLS = [_tr("未平仓"), _tr("成交量"), "Delta", _tr("隐波"), _tr("买价"), _tr("卖价"),
+              _tr("行权价"),
+              _tr("买价"), _tr("卖价"), _tr("隐波"), "Delta", _tr("成交量"), _tr("未平仓")]
 STRIKE_COL = 6
 
 # 单边模式: 行权价打头, 从左往右自然阅读, 点整行都不会有歧义
-SINGLE_COLS = ["行权价", "价内/价外", "买价", "卖价", "价差", "隐波",
-               "Delta", "未平仓", "成交量"]
+SINGLE_COLS = [_tr("行权价"), _tr("价内/价外"), _tr("买价"), _tr("卖价"), _tr("价差"), _tr("隐波"),
+               "Delta", _tr("未平仓"), _tr("成交量")]
 SINGLE_STRETCH = 1
 
 MODE_CALL, MODE_PUT, MODE_BOTH = "call", "put", "both"
 
 PRESETS = [
-    ("单腿 · 买入认购 (看涨)", "long_call"),
-    ("单腿 · 买入认沽 (看跌)", "long_put"),
-    ("单腿 · 卖出认沽 (现金担保)", "short_put"),
-    ("单腿 · 备兑开仓 (持股卖call)", "covered_call"),
-    ("价差 · 牛市认购价差", "bull_call"),
-    ("价差 · 熊市认沽价差", "bear_put"),
-    ("波动 · 跨式 (赌大涨大跌)", "straddle"),
-    ("波动 · 宽跨式 (更便宜)", "strangle"),
-    ("收租 · 铁鹰 (赌不动)", "iron_condor"),
+    (_tr("单腿 · 买入认购 (看涨)"), "long_call"),
+    (_tr("单腿 · 买入认沽 (看跌)"), "long_put"),
+    (_tr("单腿 · 卖出认沽 (现金担保)"), "short_put"),
+    (_tr("单腿 · 备兑开仓 (持股卖call)"), "covered_call"),
+    (_tr("价差 · 牛市认购价差"), "bull_call"),
+    (_tr("价差 · 熊市认沽价差"), "bear_put"),
+    (_tr("波动 · 跨式 (赌大涨大跌)"), "straddle"),
+    (_tr("波动 · 宽跨式 (更便宜)"), "strangle"),
+    (_tr("收租 · 铁鹰 (赌不动)"), "iron_condor"),
 ]
 
 
@@ -71,7 +72,7 @@ class ChainWorker(QtCore.QThread):
             if want_exp:
                 exps = self.source.expirations(und)
                 if not exps:
-                    self.failed.emit("{} 没有期权".format(und))
+                    self.failed.emit(_tr("{} 没有期权").format(und))
                     return
                 self.expirations_ready.emit(und, exps)
                 expiry = expiry if expiry in exps else exps[0]
@@ -80,7 +81,7 @@ class ChainWorker(QtCore.QThread):
         except OptionDataError as exc:
             self.failed.emit(str(exc))
         except Exception as exc:
-            self.failed.emit("期权链加载失败: {}".format(exc))
+            self.failed.emit(_tr("期权链加载失败: {}").format(exc))
 
 
 class PositionQuoteWorker(QtCore.QThread):
@@ -140,9 +141,9 @@ class OptionsTab(QtWidgets.QWidget):
         lay = QtWidgets.QVBoxLayout(self)
         lay.setContentsMargins(0, 0, 0, 0)
         self.inner = QtWidgets.QTabWidget()
-        self.inner.addTab(self._build_chain(), "期权链")
-        self.inner.addTab(self._build_positions(), "我的期权持仓")
-        self.inner.addTab(self._build_combo(), "策略组合")
+        self.inner.addTab(self._build_chain(), _tr("期权链"))
+        self.inner.addTab(self._build_positions(), _tr("我的期权持仓"))
+        self.inner.addTab(self._build_combo(), _tr("策略组合"))
         self.inner.currentChanged.connect(self._on_inner_tab)
         lay.addWidget(self.inner)
 
@@ -170,15 +171,15 @@ class OptionsTab(QtWidgets.QWidget):
         root.setSpacing(8)
 
         # ---- 左: 底层 + 到期日 ----
-        side = Card("标的与到期日")
+        side = Card(_tr("标的与到期日"))
         side.setMaximumWidth(230)
         side.setMinimumWidth(200)
         row = QtWidgets.QHBoxLayout()
         self.sym_edit = QtWidgets.QLineEdit(self.underlying)
-        self.sym_edit.setPlaceholderText("股票代码")
+        self.sym_edit.setPlaceholderText(_tr("股票代码"))
         self.sym_edit.returnPressed.connect(self._load_underlying)
         row.addWidget(self.sym_edit)
-        b = QtWidgets.QPushButton("加载")
+        b = QtWidgets.QPushButton(_tr("加载"))
         b.clicked.connect(self._load_underlying)
         row.addWidget(b)
         side.vbox.addLayout(row)
@@ -191,18 +192,18 @@ class OptionsTab(QtWidgets.QWidget):
         self.lab_spot_sub.setWordWrap(True)
         side.vbox.addWidget(self.lab_spot_sub)
 
-        side.vbox.addWidget(QtWidgets.QLabel("到期日"))
+        side.vbox.addWidget(QtWidgets.QLabel(_tr("到期日")))
         self.exp_list = QtWidgets.QListWidget()
         self.exp_list.itemClicked.connect(self._on_expiry_pick)
         side.vbox.addWidget(self.exp_list, 1)
 
-        self.only_liquid = QtWidgets.QCheckBox("只看有流动性的")
+        self.only_liquid = QtWidgets.QCheckBox(_tr("只看有流动性的"))
         self.only_liquid.setChecked(True)
-        self.only_liquid.setToolTip("过滤掉几乎没人交易、买卖价差极宽的合约")
+        self.only_liquid.setToolTip(_tr("过滤掉几乎没人交易、买卖价差极宽的合约"))
         self.only_liquid.stateChanged.connect(self._render_chain)
         side.vbox.addWidget(self.only_liquid)
 
-        self.near_only = QtWidgets.QCheckBox("只看现价 ±20% 范围")
+        self.near_only = QtWidgets.QCheckBox(_tr("只看现价 ±20% 范围"))
         self.near_only.setChecked(True)
         self.near_only.stateChanged.connect(self._render_chain)
         side.vbox.addWidget(self.near_only)
@@ -211,7 +212,7 @@ class OptionsTab(QtWidgets.QWidget):
         # ---- 中: T 型报价 ----
         mid = Card()
         head = QtWidgets.QHBoxLayout()
-        self.lab_chain = QtWidgets.QLabel("输入代码后点「加载」")
+        self.lab_chain = QtWidgets.QLabel(_tr("输入代码后点「加载」"))
         self.lab_chain.setObjectName("Title")
         head.addWidget(self.lab_chain)
         head.addStretch(1)
@@ -223,9 +224,9 @@ class OptionsTab(QtWidgets.QWidget):
         mrow = QtWidgets.QHBoxLayout()
         mrow.setSpacing(4)
         for mode, text, tip in (
-                (MODE_CALL, "看涨 Call", "只看认购合约——赌股价上涨"),
-                (MODE_PUT, "看跌 Put", "只看认沽合约——赌股价下跌"),
-                (MODE_BOTH, "两边对照", "券商常见的 T 型链: 认购在左, 认沽在右")):
+                (MODE_CALL, _tr("看涨 Call"), _tr("只看认购合约——赌股价上涨")),
+                (MODE_PUT, _tr("看跌 Put"), _tr("只看认沽合约——赌股价下跌")),
+                (MODE_BOTH, _tr("两边对照"), _tr("券商常见的 T 型链: 认购在左, 认沽在右"))):
             b = QtWidgets.QPushButton(text)
             b.setCheckable(True)
             b.setChecked(mode == self.chain_mode)
@@ -254,10 +255,10 @@ class OptionsTab(QtWidgets.QWidget):
         right = QtWidgets.QVBoxLayout()
         right.setSpacing(8)
 
-        ticket = Card("下单")
-        ticket.setMaximumWidth(380)
+        ticket = Card(_tr("下单"))
+        ticket.setMaximumWidth(450)      # 380 塞不下英文的 Buy to Open 等四个按钮
         ticket.setMinimumWidth(340)
-        self.lab_contract = QtWidgets.QLabel("还没选合约")
+        self.lab_contract = QtWidgets.QLabel(_tr("还没选合约"))
         self.lab_contract.setStyleSheet("font-size:14px; font-weight:700;")
         self.lab_contract.setWordWrap(True)
         ticket.vbox.addWidget(self.lab_contract)
@@ -287,18 +288,18 @@ class OptionsTab(QtWidgets.QWidget):
         self.qty_spin.setRange(1, 10000)
         self.qty_spin.setValue(1)
         self.qty_spin.valueChanged.connect(self._update_ticket)
-        form.addRow("合约张数", self.qty_spin)
+        form.addRow(_tr("合约张数"), self.qty_spin)
         self.type_combo = QtWidgets.QComboBox()
-        self.type_combo.addItem("市价 (吃对手价)", MARKET)
-        self.type_combo.addItem("限价", LIMIT)
+        self.type_combo.addItem(_tr("市价 (吃对手价)"), MARKET)
+        self.type_combo.addItem(_tr("限价"), LIMIT)
         self.type_combo.currentIndexChanged.connect(self._update_ticket)
-        form.addRow("订单类型", self.type_combo)
+        form.addRow(_tr("订单类型"), self.type_combo)
         self.limit_spin = QtWidgets.QDoubleSpinBox()
         self.limit_spin.setRange(0.01, 100000)
         self.limit_spin.setDecimals(2)
         self.limit_spin.setPrefix("$ ")
         self.limit_spin.valueChanged.connect(self._update_ticket)
-        form.addRow("限价 (每股)", self.limit_spin)
+        form.addRow(_tr("限价 (每股)"), self.limit_spin)
         ticket.vbox.addLayout(form)
 
         self.lab_odds = QtWidgets.QLabel("")
@@ -306,14 +307,14 @@ class OptionsTab(QtWidgets.QWidget):
         self.lab_odds.setTextFormat(QtCore.Qt.TextFormat.RichText)
         ticket.vbox.addWidget(self.lab_odds)
 
-        self.btn_submit = QtWidgets.QPushButton("买入开仓")
+        self.btn_submit = QtWidgets.QPushButton(_tr("买入开仓"))
         self.btn_submit.setObjectName("Primary")
         self.btn_submit.setMinimumHeight(36)
         self.btn_submit.clicked.connect(self._submit)
         ticket.vbox.addWidget(self.btn_submit)
         right.addWidget(ticket)
 
-        pc = Card("到期损益预览")
+        pc = Card(_tr("到期损益预览"))
         self.mini_payoff = PayoffChart()
         self.mini_payoff.setMinimumHeight(190)
         pc.vbox.addWidget(self.mini_payoff, 1)
@@ -327,9 +328,9 @@ class OptionsTab(QtWidgets.QWidget):
         if not sym:
             return
         self.underlying = sym
-        self.chain_status.setText("加载中…")
+        self.chain_status.setText(_tr("加载中…"))
         if not self.worker.start_job(sym, None, True):
-            self.chain_status.setText("上一次还在加载, 请稍候")
+            self.chain_status.setText(_tr("上一次还在加载, 请稍候"))
 
     def load_default(self):
         if not self._loaded:
@@ -344,7 +345,7 @@ class OptionsTab(QtWidgets.QWidget):
         today = date.today()
         for e in exps:
             days = (e - today).days
-            it = QtWidgets.QListWidgetItem("{}  ({} 天)".format(e.isoformat(), max(days, 0)))
+            it = QtWidgets.QListWidgetItem(_tr("{}  ({} 天)").format(e.isoformat(), max(days, 0)))
             it.setData(QtCore.Qt.ItemDataRole.UserRole, e)
             if days <= 7:
                 it.setForeground(QtGui.QColor(theme.GOLD))
@@ -356,13 +357,13 @@ class OptionsTab(QtWidgets.QWidget):
         e = item.data(QtCore.Qt.ItemDataRole.UserRole)
         if not e or e == self.expiry:
             return
-        self.chain_status.setText("加载 {} 的链…".format(e))
+        self.chain_status.setText(_tr("加载 {} 的链…").format(e))
         if not self.worker.start_job(self.underlying, e, False):
-            self.chain_status.setText("上一次还在加载, 请稍候")
+            self.chain_status.setText(_tr("上一次还在加载, 请稍候"))
 
     def _on_failed(self, msg: str):
         self.chain_status.setText(msg)
-        QtWidgets.QMessageBox.warning(self, "期权数据", msg)
+        QtWidgets.QMessageBox.warning(self, _tr("期权数据"), msg)
 
     def _on_chain(self, und: str, expiry, spot: float, quotes: list):
         if und != self.underlying:
@@ -383,11 +384,11 @@ class OptionsTab(QtWidgets.QWidget):
         iv = atm.iv if atm else 0.0
         move = pr.expected_move(spot, max(days, 0) / 365.0, iv)
         self.lab_spot_sub.setText(
-            "{}<br>平值隐波 {:.1f}%<br>到期前 1 个标准差波动 ±{:.2f} "
-            "({:.1f}%)".format(und, iv * 100, move, move / spot * 100 if spot else 0))
-        self.lab_chain.setText("{} · 到期 {} · 剩 {} 天".format(und, expiry, max(days, 0)))
+            _tr("{}<br>平值隐波 {:.1f}%<br>到期前 1 个标准差波动 ±{:.2f} "
+            "({:.1f}%)").format(und, iv * 100, move, move / spot * 100 if spot else 0))
+        self.lab_chain.setText(_tr("{} · 到期 {} · 剩 {} 天").format(und, expiry, max(days, 0)))
         self._render_chain()
-        self.chain_status.setText("共 {} 个合约".format(len(quotes)))
+        self.chain_status.setText(_tr("共 {} 个合约").format(len(quotes)))
 
     # ------------------------------------------------------------------
     def _set_chain_mode(self, mode: str):
@@ -453,18 +454,18 @@ class OptionsTab(QtWidgets.QWidget):
             return
         if self.chain_mode == MODE_BOTH:
             self.chain_legend.setText(
-                '<span style="color:{}">◀ 左边六列 = 认购 Call</span>　'
+                _tr('<span style="color:{}">◀ 左边六列 = 认购 Call</span>　'
                 '<span style="color:{}">右边六列 = 认沽 Put ▶</span>　·　'
                 '点哪一边就选哪一边的合约　·　'
-                '觉得绕就切到上面的「看涨」或「看跌」'.format(
+                '觉得绕就切到上面的「看涨」或「看跌」').format(
                     theme.up_color(), theme.down_color()))
         else:
-            cn, color = (("认购 Call", theme.up_color())
+            cn, color = ((_tr("认购 Call"), theme.up_color())
                          if self.chain_mode == MODE_CALL
-                         else ("认沽 Put", theme.down_color()))
+                         else (_tr("认沽 Put"), theme.down_color()))
             self.chain_legend.setText(
-                '当前只显示 <span style="color:{}"><b>{}</b></span>　·　'
-                '点任意一行即可选中该合约'.format(color, cn))
+                _tr('当前只显示 <span style="color:{}"><b>{}</b></span>　·　'
+                '点任意一行即可选中该合约').format(color, cn))
 
     def _single_cells(self, q: OptionQuote, T: float, right: str,
                       atm: bool) -> list:
@@ -478,12 +479,12 @@ class OptionsTab(QtWidgets.QWidget):
         delta = 0.0
         if T > 0 and q.iv > 0 and self.spot > 0:
             delta = pr.greeks(self.spot, q.strike, T, q.iv, right)["delta"]
-        money = "{} {:.1f}%".format("价内" if itm else "价外", abs(edge) * 100)
+        money = "{} {:.1f}%".format(_tr("价内") if itm else _tr("价外"), abs(edge) * 100)
         dim = theme.TEXT_DIM
         return [
             cell("{:g}".format(q.strike), theme.GOLD if atm else theme.TEXT,
                  RIGHT, bold=True, sort_key=q.strike),
-            cell("平值" if atm else money, theme.GOLD if atm else base, LEFT),
+            cell(_tr("平值") if atm else money, theme.GOLD if atm else base, LEFT),
             cell("{:.2f}".format(q.bid), theme.up_color(), RIGHT, bold=itm),
             cell("{:.2f}".format(q.ask), theme.down_color(), RIGHT, bold=itm),
             cell("{:.1f}%".format(q.spread_pct),
@@ -538,11 +539,11 @@ class OptionsTab(QtWidgets.QWidget):
         self.lab_contract.setText("{} {} {:g} {}".format(
             q.underlying, q.expiry.isoformat(), q.strike, RIGHT_CN.get(q.right, q.right)))
         self.lab_quote.setText(
-            "买价 <b>{:.2f}</b>　卖价 <b>{:.2f}</b>　价差 {:.1f}%<br>"
-            "隐波 {:.1f}%　未平仓 {:,}　成交量 {:,}{}".format(
+            _tr("买价 <b>{:.2f}</b>　卖价 <b>{:.2f}</b>　价差 {:.1f}%<br>"
+            "隐波 {:.1f}%　未平仓 {:,}　成交量 {:,}{}").format(
                 q.bid, q.ask, q.spread_pct, q.iv * 100, q.open_interest, q.volume,
                 "" if q.liquid else
-                '<br><span style="color:{}">流动性差, 真实成交可能比这个价还糟</span>'.format(
+                _tr('<br><span style="color:{}">流动性差, 真实成交可能比这个价还糟</span>').format(
                     theme.GOLD)))
         self._update_ticket()
 
@@ -554,8 +555,8 @@ class OptionsTab(QtWidgets.QWidget):
     def _update_ticket(self):
         q = self.selected
         if not q:
-            self.lab_odds.setText("先用上方的「看涨 Call / 看跌 Put」选边，"
-                                  "再点报价表里的任意一行来选合约。")
+            self.lab_odds.setText(_tr("先用上方的「看涨 Call / 看跌 Put」选边，"
+                                  "再点报价表里的任意一行来选合约。"))
             self.mini_payoff.clear()
             return
         acc, eng, _, _ = self.get_context()
@@ -570,7 +571,7 @@ class OptionsTab(QtWidgets.QWidget):
 
         colors = {BUY_OPEN: theme.up_color(), BUY_CLOSE: theme.up_color(),
                   SELL_OPEN: theme.down_color(), SELL_CLOSE: theme.down_color()}
-        self.btn_submit.setText("{}  {} 张".format(OPT_SIDE_CN[self.side], qty))
+        self.btn_submit.setText(_tr("{}  {} 张").format(OPT_SIDE_CN[self.side], qty))
         self.btn_submit.setStyleSheet(
             "background: {}; border:none; color:#fff; font-weight:700;".format(
                 colors[self.side]))
@@ -579,45 +580,45 @@ class OptionsTab(QtWidgets.QWidget):
         sign = 1 if self.side in (BUY_OPEN, BUY_CLOSE) else -1
         lines = []
         if self.side in (BUY_OPEN, BUY_CLOSE):
-            lines.append("<b>需要付出 {}</b>（含佣金 {}）".format(
+            lines.append(_tr("<b>需要付出 {}</b>（含佣金 {}）").format(
                 theme.money(notional + comm), theme.money(comm)))
         else:
-            lines.append("<b>收到权利金 {}</b>（扣佣金后 {}）".format(
+            lines.append(_tr("<b>收到权利金 {}</b>（扣佣金后 {}）").format(
                 theme.money(notional), theme.money(notional - comm)))
 
         if self.side == BUY_OPEN and T > 0 and q.iv > 0:
             a = pr.analyze(self.spot, q.strike, T, q.iv, q.right, px, qty)
             need = a["breakeven_move_pct"]
             lines.append(
-                "盈亏平衡价 <b>{:.2f}</b>（{}需{} {:.1f}%）".format(
-                    a["breakeven"], "股价" , "涨" if need > 0 else "跌", abs(need)))
+                _tr("盈亏平衡价 <b>{:.2f}</b>（{}需{} {:.1f}%）").format(
+                    a["breakeven"], _tr("股价") , _tr("涨") if need > 0 else _tr("跌"), abs(need)))
             lines.append(
-                '到期变实值 <b>{:.0f}%</b>　真正赚钱 <b style="color:{}">{:.0f}%</b>'.format(
+                _tr('到期变实值 <b>{:.0f}%</b>　真正赚钱 <b style="color:{}">{:.0f}%</b>').format(
                     a["prob_itm"], theme.GOLD, a["prob_profit"]))
-            lines.append('每天时间损耗 <span style="color:{}">{}</span>　'
-                         '最大亏损 <span style="color:{}">{}</span>（100%）'.format(
+            lines.append(_tr('每天时间损耗 <span style="color:{}">{}</span>　'
+                         '最大亏损 <span style="color:{}">{}</span>（100%）').format(
                              theme.down_color(), theme.money(abs(a["theta_per_day"])),
                              theme.down_color(), theme.money(a["max_loss"])))
         elif self.side == SELL_OPEN:
             probe_margin = self._probe_margin(q, qty, px)
-            lines.append("占用保证金约 <b>{}</b>".format(theme.money(probe_margin)))
+            lines.append(_tr("占用保证金约 <b>{}</b>").format(theme.money(probe_margin)))
             if T > 0 and q.iv > 0:
                 p_itm = pr.prob_itm(self.spot, q.strike, T, q.iv, q.right)
-                lines.append("到期被指派概率约 <b>{:.0f}%</b>".format(p_itm * 100))
+                lines.append(_tr("到期被指派概率约 <b>{:.0f}%</b>").format(p_itm * 100))
                 if q.right == CALL:
-                    lines.append('<span style="color:{}">裸卖认购理论上亏损无上限</span>'.format(
+                    lines.append(_tr('<span style="color:{}">裸卖认购理论上亏损无上限</span>').format(
                         theme.down_color()))
                 else:
-                    lines.append("最坏情况: 以 {:g} 接货 {} 股, 需 {}".format(
+                    lines.append(_tr("最坏情况: 以 {:g} 接货 {} 股, 需 {}").format(
                         q.strike, qty * q.multiplier,
                         theme.money(q.strike * qty * q.multiplier)))
         if g:
             lines.append(
-                '<span style="color:{}">Delta {:+.3f}　Gamma {:.4f}　'
-                'Theta {:+.2f}/天　Vega {:.3f}</span>'.format(
+                _tr('<span style="color:{}">Delta {:+.3f}　Gamma {:.4f}　'
+                'Theta {:+.2f}/天　Vega {:.3f}</span>').format(
                     theme.TEXT_DIM, g["delta"] * sign, g["gamma"] * sign,
                     g["theta"] * sign * q.multiplier * qty, g["vega"] * sign))
-        lines.append('<span style="color:{}">剩余 {} 天</span>'.format(theme.TEXT_DIM, max(days, 0)))
+        lines.append(_tr('<span style="color:{}">剩余 {} 天</span>').format(theme.TEXT_DIM, max(days, 0)))
         self.lab_odds.setText("<br>".join(lines))
 
         legs = [{"right": q.right, "strike": q.strike, "qty": qty * sign,
@@ -648,9 +649,9 @@ class OptionsTab(QtWidgets.QWidget):
         merged.update(self.opt_prices)
         ok, msg = eng.submit(order, q, merged, dict(self.spots))
         if not ok:
-            QtWidgets.QMessageBox.warning(self, "订单被拒绝", msg)
+            QtWidgets.QMessageBox.warning(self, _tr("订单被拒绝"), msg)
         else:
-            self.status.emit("期权 " + msg)
+            self.status.emit(_tr("期权 ") + msg)
         self.trades_executed.emit()
         self._refresh_positions()
         self.refresh_position_quotes()
@@ -664,15 +665,15 @@ class OptionsTab(QtWidgets.QWidget):
         lay.setContentsMargins(0, 0, 0, 0)
         lay.setSpacing(8)
 
-        sc = Card("组合希腊字母")
+        sc = Card(_tr("组合希腊字母"))
         grid = QtWidgets.QGridLayout()
         grid.setHorizontalSpacing(20)
         self.greek_labels = {}
         for i, (k, t) in enumerate([
-                ("count", "期权持仓"), ("value", "期权市值"), ("unreal", "浮动盈亏"),
-                ("realized", "已实现"), ("margin", "占用保证金"),
-                ("delta", "总Delta(等效股数)"), ("theta", "总Theta(每天)"),
-                ("vega", "总Vega"), ("expiring", "7天内到期")]):
+                ("count", _tr("期权持仓")), ("value", _tr("期权市值")), ("unreal", _tr("浮动盈亏")),
+                ("realized", _tr("已实现")), ("margin", _tr("占用保证金")),
+                ("delta", _tr("总Delta(等效股数)")), ("theta", _tr("总Theta(每天)")),
+                ("vega", _tr("总Vega")), ("expiring", _tr("7天内到期"))]):
             box = QtWidgets.QVBoxLayout()
             lt = QtWidgets.QLabel(t); lt.setObjectName("Dim")
             lv = QtWidgets.QLabel("—"); lv.setObjectName("StatValue")
@@ -683,22 +684,22 @@ class OptionsTab(QtWidgets.QWidget):
         sc.vbox.addLayout(grid)
         lay.addWidget(sc)
 
-        pc = Card("期权持仓")
+        pc = Card(_tr("期权持仓"))
         self.pos_table = make_table(
-            ["合约", "方向", "张数", "成本/股", "现价", "市值", "浮动盈亏", "盈亏%",
-             "Delta", "Theta/天", "内在价值", "时间价值", "剩余天数"], stretch_col=0)
+            [_tr("合约"), _tr("方向"), _tr("张数"), _tr("成本/股"), _tr("现价"), _tr("市值"), _tr("浮动盈亏"), _tr("盈亏%"),
+             "Delta", _tr("Theta/天"), _tr("内在价值"), _tr("时间价值"), _tr("剩余天数")], stretch_col=0)
         self.pos_table.itemSelectionChanged.connect(self._on_pos_select)
         pc.vbox.addWidget(self.pos_table, 1)
         row = QtWidgets.QHBoxLayout()
-        b1 = QtWidgets.QPushButton("平掉选中持仓")
+        b1 = QtWidgets.QPushButton(_tr("平掉选中持仓"))
         b1.setObjectName("Danger")
         b1.clicked.connect(self._close_selected)
         row.addWidget(b1)
-        b2 = QtWidgets.QPushButton("刷新报价")
+        b2 = QtWidgets.QPushButton(_tr("刷新报价"))
         b2.clicked.connect(self.refresh_position_quotes)
         row.addWidget(b2)
-        b3 = QtWidgets.QPushButton("立即处理到期合约")
-        b3.setToolTip("正常情况下会自动处理; 这里可以手动触发一次")
+        b3 = QtWidgets.QPushButton(_tr("立即处理到期合约"))
+        b3.setToolTip(_tr("正常情况下会自动处理; 这里可以手动触发一次"))
         b3.clicked.connect(lambda: self.process_expirations(force=True))
         row.addWidget(b3)
         row.addStretch(1)
@@ -708,9 +709,9 @@ class OptionsTab(QtWidgets.QWidget):
         pc.vbox.addLayout(row)
         lay.addWidget(pc, 2)
 
-        tc = Card("期权成交与到期记录")
+        tc = Card(_tr("期权成交与到期记录"))
         self.trade_table = make_table(
-            ["时间", "合约", "操作", "张数", "价格", "金额", "佣金", "已实现盈亏", "备注"],
+            [_tr("时间"), _tr("合约"), _tr("操作"), _tr("张数"), _tr("价格"), _tr("金额"), _tr("佣金"), _tr("已实现盈亏"), _tr("备注")],
             stretch_col=1)
         tc.vbox.addWidget(self.trade_table, 1)
         lay.addWidget(tc, 1)
@@ -766,7 +767,7 @@ class OptionsTab(QtWidgets.QWidget):
                 cell("{} {} {:g}{}".format(pos.underlying, pos.expiry, pos.strike,
                                            "C" if pos.right == CALL else "P"),
                      theme.TEXT, LEFT, bold=True),
-                cell("买方" if pos.qty > 0 else "卖方",
+                cell(_tr("买方") if pos.qty > 0 else _tr("卖方"),
                      theme.up_color() if pos.qty > 0 else theme.down_color(), CENTER),
                 cell("{:+d}".format(pos.qty), None, RIGHT),
                 cell("{:.3f}".format(pos.avg_cost), None, RIGHT),
@@ -824,7 +825,7 @@ class OptionsTab(QtWidgets.QWidget):
         r = self.pos_table.currentRow()
         syms = getattr(self, "_pos_symbols", [])
         if not (0 <= r < len(syms)):
-            QtWidgets.QMessageBox.information(self, "提示", "请先选中一行持仓。")
+            QtWidgets.QMessageBox.information(self, _tr("提示"), _tr("请先选中一行持仓。"))
             return
         acc, eng, _, prices = self.get_context()
         pos = acc.option_positions.get(syms[r])
@@ -832,11 +833,11 @@ class OptionsTab(QtWidgets.QWidget):
             return
         q = self.by_symbol.get(pos.symbol) or self.source.quote(pos.symbol)
         if not q:
-            QtWidgets.QMessageBox.warning(self, "无报价", "拿不到该合约的报价, 无法平仓。")
+            QtWidgets.QMessageBox.warning(self, _tr("无报价"), _tr("拿不到该合约的报价, 无法平仓。"))
             return
         side = SELL_CLOSE if pos.qty > 0 else BUY_CLOSE
         if QtWidgets.QMessageBox.question(
-                self, "确认平仓", "按市价{} {} 张 {}?".format(
+                self, _tr("确认平仓"), _tr("按市价{} {} 张 {}?").format(
                     OPT_SIDE_CN[side], pos.abs_qty, pos.symbol)
         ) != QtWidgets.QMessageBox.StandardButton.Yes:
             return
@@ -847,9 +848,9 @@ class OptionsTab(QtWidgets.QWidget):
         merged = dict(prices)
         merged.update(self.opt_prices)
         ok, msg = eng.submit(order, q, merged, dict(self.spots))
-        self.status.emit("期权 " + msg)
+        self.status.emit(_tr("期权 ") + msg)
         if not ok:
-            QtWidgets.QMessageBox.warning(self, "平仓失败", msg)
+            QtWidgets.QMessageBox.warning(self, _tr("平仓失败"), msg)
         self.trades_executed.emit()
         self._refresh_positions()
 
@@ -879,8 +880,8 @@ class OptionsTab(QtWidgets.QWidget):
         logs = eng.process_expirations(dict(self.spots), force=force)
         if logs:
             for l in logs:
-                self.status.emit("期权到期: " + l)
-            QtWidgets.QMessageBox.information(self, "期权到期处理", "\n".join(logs[:10]))
+                self.status.emit(_tr("期权到期: ") + l)
+            QtWidgets.QMessageBox.information(self, _tr("期权到期处理"), "\n".join(logs[:10]))
             self.trades_executed.emit()
             self._refresh_positions()
 
@@ -893,12 +894,12 @@ class OptionsTab(QtWidgets.QWidget):
         root.setContentsMargins(0, 0, 0, 0)
         root.setSpacing(8)
 
-        side = Card("策略构建")
+        side = Card(_tr("策略构建"))
         side.setMaximumWidth(360)
         side.setMinimumWidth(330)
         tip = QtWidgets.QLabel(
-            "选一个预设结构, 系统会按当前期权链自动挑行权价; "
-            "也可以在下面的腿列表里手动改。")
+            _tr("选一个预设结构, 系统会按当前期权链自动挑行权价; "
+            "也可以在下面的腿列表里手动改。"))
         tip.setObjectName("Dim")
         tip.setWordWrap(True)
         side.vbox.addWidget(tip)
@@ -913,36 +914,36 @@ class OptionsTab(QtWidgets.QWidget):
         self.combo_qty = QtWidgets.QSpinBox()
         self.combo_qty.setRange(1, 1000)
         self.combo_qty.setValue(1)
-        form.addRow("组数", self.combo_qty)
+        form.addRow(_tr("组数"), self.combo_qty)
         self.combo_width = QtWidgets.QSpinBox()
         self.combo_width.setRange(1, 50)
         self.combo_width.setValue(5)
-        self.combo_width.setToolTip("价差/铁鹰两腿之间隔几档行权价")
-        form.addRow("价差宽度(档)", self.combo_width)
+        self.combo_width.setToolTip(_tr("价差/铁鹰两腿之间隔几档行权价"))
+        form.addRow(_tr("价差宽度(档)"), self.combo_width)
         side.vbox.addLayout(form)
 
-        b = QtWidgets.QPushButton("按当前期权链生成")
+        b = QtWidgets.QPushButton(_tr("按当前期权链生成"))
         b.setObjectName("Primary")
         b.clicked.connect(self._build_preset)
         side.vbox.addWidget(b)
 
-        side.vbox.addWidget(QtWidgets.QLabel("腿"))
-        self.leg_table = make_table(["合约", "方向", "张数", "价格"], stretch_col=0)
+        side.vbox.addWidget(QtWidgets.QLabel(_tr("腿")))
+        self.leg_table = make_table([_tr("合约"), _tr("方向"), _tr("张数"), _tr("价格")], stretch_col=0)
         self.leg_table.setMaximumHeight(150)
         side.vbox.addWidget(self.leg_table)
         brow = QtWidgets.QHBoxLayout()
-        b1 = QtWidgets.QPushButton("把选中合约加为一腿")
+        b1 = QtWidgets.QPushButton(_tr("把选中合约加为一腿"))
         b1.clicked.connect(lambda: self._add_leg(+1))
         brow.addWidget(b1)
-        b2 = QtWidgets.QPushButton("加为卖出腿")
+        b2 = QtWidgets.QPushButton(_tr("加为卖出腿"))
         b2.clicked.connect(lambda: self._add_leg(-1))
         brow.addWidget(b2)
         side.vbox.addLayout(brow)
         brow2 = QtWidgets.QHBoxLayout()
-        b3 = QtWidgets.QPushButton("删除选中腿")
+        b3 = QtWidgets.QPushButton(_tr("删除选中腿"))
         b3.clicked.connect(self._remove_leg)
         brow2.addWidget(b3)
-        b4 = QtWidgets.QPushButton("清空")
+        b4 = QtWidgets.QPushButton(_tr("清空"))
         b4.clicked.connect(self._clear_legs)
         brow2.addWidget(b4)
         side.vbox.addLayout(brow2)
@@ -951,7 +952,7 @@ class OptionsTab(QtWidgets.QWidget):
         self.combo_metrics.setWordWrap(True)
         side.vbox.addWidget(self.combo_metrics)
 
-        self.btn_combo_submit = QtWidgets.QPushButton("一次性下单全部腿")
+        self.btn_combo_submit = QtWidgets.QPushButton(_tr("一次性下单全部腿"))
         self.btn_combo_submit.setObjectName("Primary")
         self.btn_combo_submit.setMinimumHeight(34)
         self.btn_combo_submit.clicked.connect(self._submit_combo)
@@ -959,7 +960,7 @@ class OptionsTab(QtWidgets.QWidget):
         side.vbox.addStretch(1)
         root.addWidget(side)
 
-        card = Card("到期损益图")
+        card = Card(_tr("到期损益图"))
         self.combo_payoff = PayoffChart()
         card.vbox.addWidget(self.combo_payoff, 1)
         root.addWidget(card, 1)
@@ -979,7 +980,7 @@ class OptionsTab(QtWidgets.QWidget):
 
     def _build_preset(self):
         if not self.quotes or self.spot <= 0:
-            QtWidgets.QMessageBox.information(self, "提示", "先在【期权链】里加载一个标的。")
+            QtWidgets.QMessageBox.information(self, _tr("提示"), _tr("先在【期权链】里加载一个标的。"))
             return
         key = self.preset_combo.currentData()
         n = self.combo_qty.value()
@@ -1016,7 +1017,7 @@ class OptionsTab(QtWidgets.QWidget):
 
     def _add_leg(self, direction: int):
         if not self.selected:
-            QtWidgets.QMessageBox.information(self, "提示", "先在【期权链】里双击选中一个合约。")
+            QtWidgets.QMessageBox.information(self, _tr("提示"), _tr("先在【期权链】里双击选中一个合约。"))
             return
         self.legs.append({"quote": self.selected, "qty": direction * self.combo_qty.value()})
         self._render_legs()
@@ -1038,9 +1039,9 @@ class OptionsTab(QtWidgets.QWidget):
             qty = leg["qty"]
             if leg.get("stock"):
                 rows.append([
-                    cell("{} 正股".format(self.underlying), theme.TEXT, LEFT, bold=True),
-                    cell("买入", theme.up_color(), CENTER),
-                    cell("{:,} 股".format(qty), None, RIGHT),
+                    cell(_tr("{} 正股").format(self.underlying), theme.TEXT, LEFT, bold=True),
+                    cell(_tr("买入"), theme.up_color(), CENTER),
+                    cell(_tr("{:,} 股").format(qty), None, RIGHT),
                     cell("{:.2f}".format(self.spot), None, RIGHT)])
                 continue
             px = q.fill_price(BUY_OPEN if qty > 0 else SELL_OPEN)
@@ -1048,7 +1049,7 @@ class OptionsTab(QtWidgets.QWidget):
                 cell("{} {:g}{}".format(q.expiry, q.strike,
                                         "C" if q.right == CALL else "P"),
                      theme.TEXT, LEFT, bold=True),
-                cell("买入" if qty > 0 else "卖出",
+                cell(_tr("买入") if qty > 0 else _tr("卖出"),
                      theme.up_color() if qty > 0 else theme.down_color(), CENTER),
                 cell("{:+d}".format(qty), None, RIGHT),
                 cell("{:.2f}".format(px), None, RIGHT)])
@@ -1084,15 +1085,15 @@ class OptionsTab(QtWidgets.QWidget):
         mx, mn = info["max_profit"], info["max_loss"]
         bes = info["breakevens"]
         self.combo_metrics.setText(
-            "{} <b>{}</b><br>"
+            _tr("{} <b>{}</b><br>"
             '最大盈利 <span style="color:{}">{}</span>{}<br>'
             '最大亏损 <span style="color:{}">{}</span>{}<br>'
-            "盈亏平衡 {}<br>剩余 {} 天".format(
-                "净支出" if net < 0 else "净收入", theme.money(abs(net)),
+            "盈亏平衡 {}<br>剩余 {} 天").format(
+                _tr("净支出") if net < 0 else _tr("净收入"), theme.money(abs(net)),
                 theme.up_color(), theme.money(mx),
-                "（区间外还会继续涨）" if info["unlimited_up"] else "",
+                _tr("（区间外还会继续涨）") if info["unlimited_up"] else "",
                 theme.down_color(), theme.money(abs(mn)),
-                "（理论无下限）" if info["unlimited_down"] else "",
+                _tr("（理论无下限）") if info["unlimited_down"] else "",
                 " / ".join("{:.2f}".format(b) for b in bes) or "—", max(days, 0)))
 
     def _submit_combo(self):
@@ -1103,17 +1104,17 @@ class OptionsTab(QtWidgets.QWidget):
         stock_legs = [l for l in self.legs if l.get("stock")]
         if stock_legs:
             QtWidgets.QMessageBox.information(
-                self, "提示",
-                "这个结构包含正股腿。请先到【交易】页买入 {} 股 {}，再回来下期权腿。".format(
+                self, _tr("提示"),
+                _tr("这个结构包含正股腿。请先到【交易】页买入 {} 股 {}，再回来下期权腿。").format(
                     sum(l["qty"] for l in stock_legs), self.underlying))
         lines = []
         for l in opts:
             q = l["quote"]
-            lines.append("{} {} 张 {} {:g}{}".format(
-                "买入" if l["qty"] > 0 else "卖出", abs(l["qty"]),
+            lines.append(_tr("{} {} 张 {} {:g}{}").format(
+                _tr("买入") if l["qty"] > 0 else _tr("卖出"), abs(l["qty"]),
                 q.expiry, q.strike, "C" if q.right == CALL else "P"))
         if QtWidgets.QMessageBox.question(
-                self, "确认下单", "按市价执行以下 {} 条腿:\n\n{}".format(
+                self, _tr("确认下单"), _tr("按市价执行以下 {} 条腿:\n\n{}").format(
                     len(opts), "\n".join(lines))
         ) != QtWidgets.QMessageBox.StandardButton.Yes:
             return
@@ -1139,11 +1140,11 @@ class OptionsTab(QtWidgets.QWidget):
             else:
                 errs.append("{:g}{}: {}".format(
                     q.strike, "C" if q.right == CALL else "P", msg))
-        self.status.emit("组合下单: 成功 {} 条腿".format(done))
+        self.status.emit(_tr("组合下单: 成功 {} 条腿").format(done))
         self.trades_executed.emit()
         self._refresh_positions()
         if errs:
-            QtWidgets.QMessageBox.warning(self, "部分腿未成交", "\n".join(errs[:6]))
+            QtWidgets.QMessageBox.warning(self, _tr("部分腿未成交"), "\n".join(errs[:6]))
 
     # ==================================================================
     def _on_inner_tab(self, idx: int):

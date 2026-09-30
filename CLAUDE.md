@@ -43,6 +43,8 @@
 ```
 main.py                    入口
 pt/config.py               设置、佣金与规费模型
+pt/i18n.py                 界面语言: _tr() 翻译 / N_() 只标记 (见不变量 18)
+pt/lang/                   英文翻译表, key 是中文原文
 pt/market.py               行情客户端（报价 / K线 / 搜索 / 榜单）
 pt/universe.py             板块分组代码表
 pt/models.py               订单 / 成交 / 持仓 / 账户
@@ -124,6 +126,24 @@ data/                      账户、设置、AI 文件（自动生成，不要�
       `RECOVERED_FROM`；坏文件改名成 `.corrupt-<时间>` 保留并记进 `LOAD_FAILURES`，
       启动时弹窗告诉用户。默默开新账户 = 数据没了还让人以为一切正常。
     任何碰 `dist/` 的脚本都必须先抢救 `data/`（见 `build_exe._rescue_data`）。
+18. **界面文字双语，默认英文。** 所有显示给用户的中文写成 `_tr("中文原文")`，
+    中文原文就是 key，译文在 `pt/lang/en_*.py`。加了界面文字就跑
+    `python tools/check_lang.py`（查漏翻、占位符不一致、真跑一遍 `.format()`）。
+    - **`config.py` 不许用 `_tr`**：那里有数据文件夹名 `模拟炒股`，翻译了就会去另一个
+      文件夹找账户（又一次数据丢失）。config 也不能 import i18n（循环导入）。
+    - **要存盘或当查找键的名字用 `N_("中文")`**，只标记不翻译，显示时再 `_tr()`。
+      例子：组合预设名存进 `autotrader.json`、默认账户名 `DEFAULT_ACCOUNT_NAME`。
+      否则切换语言后旧配置按名字就找不到了。下拉框用 `addItem(_tr(name), name)`，
+      存 `currentData()` 不存 `currentText()`。
+    - **不要拿显示文字做逻辑判断**。`options/engine.stats()` 按 note 里的关键词识别
+      作废/交割，所以 `EXPIRED_MARKS` / `DELIVER_MARKS` 中英文都列了，
+      英文译文必须含 `expired worthless` / `deliver`（`check_lang.py` 会查）。
+    - 不能用 `t` / `_` / `tr` 当函数名：代码里当变量用了几百次，会撞名。
+    - 一条译文里要调语序就全部用显式编号 `{0}{1}`，Python 不许和 `{}` 混用。
+    - 语言启动时读一次（`i18n.LANG`），切换要重启；测试用 `PT_LANG=en/zh` 覆盖。
+    - 设置页的「Language / 语言」那一组**故意不翻译**，否则切错语言的人找不到怎么切回来。
+    - 存盘的历史数据（成交 note、自动交易日志、用户起的账户名）不翻译，
+      只有新产生的记录跟随当前语言。
 
 ## 打包发布
 

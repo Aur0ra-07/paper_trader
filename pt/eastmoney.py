@@ -50,6 +50,7 @@ from datetime import datetime, timezone
 import requests
 
 from .market import Candle, MarketError, Quote
+from .i18n import _tr
 
 _UA = ("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
        "(KHTML, like Gecko) Chrome/124.0 Safari/537.36")
@@ -162,7 +163,7 @@ class EastMoneySource:
                 last = exc
                 if i < retries - 1:
                     time.sleep(0.5 * (i + 1))       # 退避
-        raise MarketError("东方财富请求失败: {}".format(last))
+        raise MarketError(_tr("东方财富请求失败: {}").format(last))
 
     def _resolve(self, symbol: str) -> str:
         """代码 -> secid。先查缓存/内置表, 再逐个市场号试。"""
@@ -187,8 +188,8 @@ class EastMoneySource:
         # 三个市场号全都是网络错误时, 不能说成"代码不存在" —— 那会让调用方
         # 以为标的有问题, 实际上只是被限流了。
         if errors == len(_MARKETS):
-            raise MarketError("东方财富连不上, 无法解析 {}".format(symbol))
-        raise MarketError("东方财富没有这个代码: {}".format(symbol))
+            raise MarketError(_tr("东方财富连不上, 无法解析 {}").format(symbol))
+        raise MarketError(_tr("东方财富没有这个代码: {}").format(symbol))
 
     # ------------------------------------------------------------------
     def quote(self, symbol: str) -> Quote:
@@ -196,7 +197,7 @@ class EastMoneySource:
         got = self.quotes([symbol])
         q = got.get(symbol.upper())
         if q is None:
-            raise MarketError("东方财富无行情数据: {}".format(symbol))
+            raise MarketError(_tr("东方财富无行情数据: {}").format(symbol))
         return q
 
     def _tencent_quotes(self, syms: list) -> dict:
@@ -330,7 +331,7 @@ class EastMoneySource:
                 return f[2]
         except Exception:
             pass
-        raise MarketError("拿不到 {} 的腾讯代码后缀".format(symbol))
+        raise MarketError(_tr("拿不到 {} 的腾讯代码后缀").format(symbol))
 
     def _tencent_klines(self, symbol: str, interval: str, limit: int) -> list:
         """腾讯日/周/月线。
@@ -344,7 +345,7 @@ class EastMoneySource:
         """
         period = _TENCENT_PERIOD.get(interval)
         if not period:
-            raise MarketError("腾讯不支持周期 {}".format(interval))
+            raise MarketError(_tr("腾讯不支持周期 {}").format(interval))
         code = "us" + self._tencent_suffix(symbol)
         n = min(max(int(limit), 1), _TENCENT_MAX_BARS)
         r = self._session.get(_TENCENT_K,
@@ -359,7 +360,7 @@ class EastMoneySource:
                 rows = v
                 break
         if not rows:
-            raise MarketError("腾讯没有 {} 的 K 线".format(symbol))
+            raise MarketError(_tr("腾讯没有 {} 的 K 线").format(symbol))
         out = []
         for x in rows:                      # [日期, 开, 收, 高, 低, 量]
             if len(x) < 6:
@@ -412,7 +413,7 @@ class EastMoneySource:
                 beg: str = "0", end: str = "20500101") -> list:
         klt = _KLT.get(interval)
         if klt is None:
-            raise MarketError("东方财富不支持周期 {}".format(interval))
+            raise MarketError(_tr("东方财富不支持周期 {}").format(interval))
         secid = self._resolve(symbol)
         d = self._get(_HIS + "/api/qt/stock/kline/get", {
             "secid": secid,

@@ -17,6 +17,7 @@ from dataclasses import dataclass, field
 from ..config import Settings
 from . import backtest as bt
 from . import indicators as ind
+from ..i18n import _tr
 
 
 @dataclass
@@ -44,7 +45,7 @@ class RotationResult:
     symbols: list = field(default_factory=list)
     error: str = ""
     strategy_label: str = ""
-    symbol: str = "轮动组合"
+    symbol: str = _tr("轮动组合")
     strategy_key: str = "rotation"
     params: dict = field(default_factory=dict)
 
@@ -142,14 +143,14 @@ def run(data: dict, settings: Settings, cfg: RotationConfig) -> RotationResult:
         "rebalance_bars": cfg.rebalance_bars, "abs_momentum": cfg.abs_momentum,
         "trend_ma": cfg.trend_ma})
     if len(symbols) < 2:
-        res.error = "轮动至少需要 2 个标的"
+        res.error = _tr("轮动至少需要 2 个标的")
         return res
 
     timeline, closes, opens = _align({s: data[s] for s in symbols})
     n = len(timeline)
     warm = cfg.lookback + cfg.skip_recent + max(cfg.trend_ma, 0) + 2
     if n < warm + 40:
-        res.error = "K 线只有 {} 根, 这套参数至少需要 {} 根".format(n, warm + 40)
+        res.error = _tr("K 线只有 {} 根, 这套参数至少需要 {} 根").format(n, warm + 40)
         return res
 
     mas = {}
@@ -158,10 +159,10 @@ def run(data: dict, settings: Settings, cfg: RotationConfig) -> RotationResult:
             series = [c if c is not None else 0.0 for c in closes[s]]
             mas[s] = ind.sma(series, cfg.trend_ma)
 
-    res.strategy_label = "动量轮动 (回看{}根, 持有前{}名, 每{}根调仓{}{})".format(
+    res.strategy_label = _tr("动量轮动 (回看{}根, 持有前{}名, 每{}根调仓{}{})").format(
         cfg.lookback, cfg.top_k, cfg.rebalance_bars,
-        ", 绝对动量" if cfg.abs_momentum else "",
-        ", MA{}过滤".format(cfg.trend_ma) if cfg.trend_ma >= 2 else "")
+        _tr(", 绝对动量") if cfg.abs_momentum else "",
+        _tr(", MA{}过滤").format(cfg.trend_ma) if cfg.trend_ma >= 2 else "")
 
     cash = cfg.initial_cash
     holdings: dict = {}              # symbol -> qty
@@ -237,7 +238,7 @@ def run(data: dict, settings: Settings, cfg: RotationConfig) -> RotationResult:
             pending = None
             for s in list(holdings):
                 if s not in target:
-                    sell(s, i, "轮出")
+                    sell(s, i, _tr("轮出"))
             if target:
                 equity_now = value_at(i)
                 lev = max(cfg.leverage, 1.0)
@@ -260,7 +261,7 @@ def run(data: dict, settings: Settings, cfg: RotationConfig) -> RotationResult:
             exposure = sum(abs(q * (closes[s2][i] or 0)) for s2, q in holdings.items())
             if exposure > 0 and eq_now < exposure * settings.maintenance_margin:
                 for s2 in list(holdings):
-                    sell(s2, i, "强制平仓(追保)")
+                    sell(s2, i, _tr("强制平仓(追保)"))
                 margin_calls += 1
 
         res.equity.append((timeline[i], value_at(i)))
@@ -271,7 +272,7 @@ def run(data: dict, settings: Settings, cfg: RotationConfig) -> RotationResult:
                 pending = target
 
     for s in list(holdings):
-        sell(s, n - 1, "回测结束")
+        sell(s, n - 1, _tr("回测结束"))
     if res.equity:
         res.equity[-1] = (timeline[-1], cash)
 

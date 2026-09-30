@@ -20,6 +20,7 @@ from . import rotation
 from .library import create
 from .portfolio import ASSET, CASH, ROTATION, STRATEGY, Sleeve
 from .rotation import RotationConfig
+from ..i18n import _tr
 
 
 @dataclass
@@ -69,12 +70,12 @@ def sleeve_target(sleeve: Sleeve, candles_by_symbol: dict,
     idx = idx_by_symbol or {}
 
     if sleeve.kind == CASH:
-        out.note = "现金"
+        out.note = _tr("现金")
         return out
 
     syms = _usable(sleeve, candles_by_symbol)
     if not syms:
-        out.note = "没有可用 K 线, 按空仓处理"
+        out.note = _tr("没有可用 K 线, 按空仓处理")
         return out
 
     if sleeve.kind == ROTATION:
@@ -82,18 +83,18 @@ def sleeve_target(sleeve: Sleeve, candles_by_symbol: dict,
         sub = {s: candles_by_symbol[s] for s in syms}
         picks, scores = rotation.live_picks(sub, rc, idx)
         if not picks:
-            out.note = "动量全为负 → 空仓 (绝对动量保护)"
+            out.note = _tr("动量全为负 → 空仓 (绝对动量保护)")
             return out
         w = 1.0 / len(picks)
         out.holdings = {s: w for s in picks}
-        out.note = "轮动选中 " + ", ".join(
+        out.note = _tr("轮动选中 ") + ", ".join(
             "{} ({:+.1f}%)".format(s, scores.get(s, 0) * 100) for s in picks)
         return out
 
     if sleeve.kind == ASSET or sleeve.strategy_key == "buy_hold":
         w = 1.0 / len(syms)
         out.holdings = {s: w for s in syms}
-        out.note = "等权持有 " + ", ".join(syms)
+        out.note = _tr("等权持有 ") + ", ".join(syms)
         return out
 
     # STRATEGY: 每个标的独立择时, 信号为多才占该支柱的 1/n, 否则那份留现金
@@ -104,7 +105,7 @@ def sleeve_target(sleeve: Sleeve, candles_by_symbol: dict,
         i = idx.get(s, len(candles) - 1)
         strat = create(sleeve.strategy_key, **(sleeve.params or {}))
         if i < strat.warmup():
-            off.append(s + "(预热不足)")
+            off.append(s + _tr("(预热不足)"))
             continue
         strat.prepare(candles)
         try:
@@ -112,7 +113,7 @@ def sleeve_target(sleeve: Sleeve, candles_by_symbol: dict,
             for k in range(strat.warmup(), i + 1):
                 tgt = strat.target(k)
         except Exception as exc:                       # 单个标的出错不该拖垮整个组合
-            off.append("{}(出错:{})".format(s, exc))
+            off.append(_tr("{}(出错:{})").format(s, exc))
             continue
         if tgt < 0 and not allow_short:
             tgt = 0
@@ -121,8 +122,8 @@ def sleeve_target(sleeve: Sleeve, candles_by_symbol: dict,
             on.append(s)
         else:
             off.append(s)
-    out.note = "{}: 持有 {} / 空仓 {}".format(
-        sleeve.strategy_key, ", ".join(on) or "无", ", ".join(off) or "无")
+    out.note = _tr("{}: 持有 {} / 空仓 {}").format(
+        sleeve.strategy_key, ", ".join(on) or _tr("无"), ", ".join(off) or _tr("无"))
     return out
 
 
@@ -132,14 +133,14 @@ def plan(sleeves: list, candles_by_symbol: dict,
     """把一组支柱翻译成 {代码: 占总权益的目标权重}。"""
     p = AllocPlan()
     if not sleeves:
-        p.error = "组合里一个支柱都没有"
+        p.error = _tr("组合里一个支柱都没有")
         return p
     total_w = sum(s.weight for s in sleeves)
     if total_w <= 0:
-        p.error = "支柱权重之和为 0"
+        p.error = _tr("支柱权重之和为 0")
         return p
     if abs(total_w - 1.0) > 0.02:
-        p.warnings.append("支柱权重之和是 {:.0%}, 不是 100%".format(total_w))
+        p.warnings.append(_tr("支柱权重之和是 {:.0%}, 不是 100%").format(total_w))
 
     for sl in sleeves:
         st = sleeve_target(sl, candles_by_symbol, idx_by_symbol, allow_short)
@@ -149,7 +150,7 @@ def plan(sleeves: list, candles_by_symbol: dict,
 
         missing = [s for s in sl.symbols if not candles_by_symbol.get(s)]
         if missing and sl.kind != CASH:
-            p.warnings.append("{}: 拿不到 {} 的行情".format(sl.name, ", ".join(missing)))
+            p.warnings.append(_tr("{}: 拿不到 {} 的行情").format(sl.name, ", ".join(missing)))
 
     # 数值毛刺清理
     p.targets = {k: v for k, v in p.targets.items() if v > 1e-6}

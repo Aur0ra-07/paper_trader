@@ -9,6 +9,7 @@ from .. import universe
 from ..market import MarketData
 from . import theme
 from .panels import Card, NumItem, make_table, cell, fill_table, LEFT, RIGHT, CENTER
+from ..i18n import _tr
 
 SCREENER = "screener"
 SECTOR = "sector"
@@ -86,7 +87,7 @@ class MarketBrowser(QtWidgets.QWidget):
         lay.setSpacing(8)
 
         # -- 左侧分类 --
-        left = Card("市场")
+        left = Card(_tr("市场"))
         left.setMaximumWidth(210)
         left.setMinimumWidth(180)
         self.cat_list = QtWidgets.QListWidget()
@@ -106,23 +107,23 @@ class MarketBrowser(QtWidgets.QWidget):
         self.lab_count.setObjectName("Dim")
         head.addWidget(self.lab_count)
         head.addStretch(1)
-        b_refresh = QtWidgets.QPushButton("刷新")
+        b_refresh = QtWidgets.QPushButton(_tr("刷新"))
         b_refresh.clicked.connect(lambda: self.load(self.current_kind, self.current_key,
                                                    self.current_title, force=True))
         head.addWidget(b_refresh)
-        b_add = QtWidgets.QPushButton("整组加入自选股")
+        b_add = QtWidgets.QPushButton(_tr("整组加入自选股"))
         b_add.clicked.connect(self._add_all)
         head.addWidget(b_add)
         right.vbox.addLayout(head)
 
-        self.table = make_table(["代码", "名称", "最新价", "涨跌幅", "成交量", "市值"], stretch_col=1)
+        self.table = make_table([_tr("代码"), _tr("名称"), _tr("最新价"), _tr("涨跌幅"), _tr("成交量"), _tr("市值")], stretch_col=1)
         self.table.setSortingEnabled(True)
         self.table.doubleClicked.connect(self._on_double_click)
         right.vbox.addWidget(self.table, 1)
 
         hint = QtWidgets.QLabel(
-            "双击任意一行即可加入自选股并跳转到交易页  ·  点表头可按价格/涨跌幅/成交量排序  "
-            "·  榜单数据缓存 90 秒")
+            _tr("双击任意一行即可加入自选股并跳转到交易页  ·  点表头可按价格/涨跌幅/成交量排序  "
+            "·  榜单数据缓存 90 秒"))
         hint.setObjectName("Dim")
         right.vbox.addWidget(hint)
         lay.addWidget(right, 1)
@@ -143,13 +144,13 @@ class MarketBrowser(QtWidgets.QWidget):
             it.setFont(f)
             self.cat_list.addItem(it)
 
-        header("实时榜单")
+        header(_tr("实时榜单"))
         for title, sid in universe.SCREENERS:
             it = QtWidgets.QListWidgetItem("  " + title)
             it.setData(QtCore.Qt.ItemDataRole.UserRole, (SCREENER, sid, title))
             self.cat_list.addItem(it)
 
-        header("板块分组")
+        header(_tr("板块分组"))
         for title, syms in universe.SECTORS:
             it = QtWidgets.QListWidgetItem("  {} ({})".format(title, len(syms)))
             it.setData(QtCore.Qt.ItemDataRole.UserRole, (SECTOR, title, title))
@@ -168,7 +169,7 @@ class MarketBrowser(QtWidgets.QWidget):
     def load(self, kind: str, key: str, title: str, force: bool = False) -> None:
         self.current_kind, self.current_key, self.current_title = kind, key, title
         self.lab_title.setText(title)
-        self.lab_count.setText("加载中…")
+        self.lab_count.setText(_tr("加载中…"))
         if force and kind == SCREENER:
             self.market._screener_cache.pop(key, None)
         self.worker.request(kind, key)
@@ -181,7 +182,7 @@ class MarketBrowser(QtWidgets.QWidget):
         if kind != self.current_kind or key != self.current_key:
             return
         self.rows = rows
-        self.lab_count.setText("{} 只".format(len(rows)))
+        self.lab_count.setText(_tr("{} 只").format(len(rows)))
 
         self.table.setSortingEnabled(False)
         items = []
@@ -215,11 +216,11 @@ class MarketBrowser(QtWidgets.QWidget):
     def _on_failed(self, key: str, msg: str) -> None:
         if key != self.current_key:
             return
-        self.lab_count.setText("加载失败")
+        self.lab_count.setText(_tr("加载失败"))
         self.table.setRowCount(0)
         QtWidgets.QMessageBox.warning(
-            self, "榜单加载失败",
-            "{}\n\nYahoo 对榜单接口有频率限制, 稍等十几秒再点刷新即可。".format(msg))
+            self, _tr("榜单加载失败"),
+            _tr("{}\n\nYahoo 对榜单接口有频率限制, 稍等十几秒再点刷新即可。").format(msg))
 
     # ------------------------------------------------------------------
     def _selected_symbol(self) -> str:
@@ -239,8 +240,8 @@ class MarketBrowser(QtWidgets.QWidget):
         if not syms:
             return
         if len(syms) > 40 and QtWidgets.QMessageBox.question(
-                self, "确认",
-                "把「{}」的 {} 只全部加入自选股?\n自选股太多会拖慢行情刷新, 建议控制在 60 只以内。".format(
+                self, _tr("确认"),
+                _tr("把「{}」的 {} 只全部加入自选股?\n自选股太多会拖慢行情刷新, 建议控制在 60 只以内。").format(
                     self.current_title, len(syms))
         ) != QtWidgets.QMessageBox.StandardButton.Yes:
             return

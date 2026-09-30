@@ -57,6 +57,7 @@ class Settings:
     refresh_seconds: int = 5              # 行情轮询间隔
     include_prepost: bool = True          # 盘前盘后价格
     data_source: str = "auto"       # auto | yahoo | eastmoney
+    language: str = "en"            # en | zh —— 界面语言, 由 pt/i18n.py 在启动时读取
 
     # --- 成交模型 ---
     slippage_bps: float = 2.0             # 市价单滑点(基点, 1bp = 0.01%)

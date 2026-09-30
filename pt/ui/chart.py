@@ -7,6 +7,7 @@ import pyqtgraph as pg
 from PyQt6 import QtCore, QtGui, QtWidgets
 
 from . import theme
+from ..i18n import _tr
 
 pg.setConfigOptions(antialias=True, background=theme.BG_ALT, foreground=theme.TEXT_DIM)
 
@@ -105,22 +106,31 @@ class MoneyAxis(pg.AxisItem):
         super().__init__(*a, **kw)
         self.enableAutoSIPrefix(False)      # 不开这个它还会自己加 SI 前缀
 
-    @staticmethod
-    def fmt(v: float) -> str:
+    PREFIX = "$"
+
+    @classmethod
+    def fmt(cls, v: float) -> str:
+        p = cls.PREFIX
         sign = "-" if v < 0 else ""          # 负号在 $ 外面, 不是 $-2M
         a = abs(v)
         if a >= 1e9:
-            return "{}${:g}B".format(sign, round(a / 1e9, 2))
+            return "{}{}{:g}B".format(sign, p, round(a / 1e9, 2))
         if a >= 1e6:
-            return "{}${:g}M".format(sign, round(a / 1e6, 2))
+            return "{}{}{:g}M".format(sign, p, round(a / 1e6, 2))
         if a >= 1e4:
-            return "{}${:g}K".format(sign, round(a / 1e3, 1))
+            return "{}{}{:g}K".format(sign, p, round(a / 1e3, 1))
         if a >= 1:
-            return "{}${:,.0f}".format(sign, a)
-        return "{}${:g}".format(sign, round(a, 4))
+            return "{}{}{:,.0f}".format(sign, p, a)
+        return "{}{}{:g}".format(sign, p, round(a, 4))
 
     def tickStrings(self, values, scale, spacing):
         return [self.fmt(v) for v in values]
+
+
+class CountAxis(MoneyAxis):
+    """成交量轴: 150M, 不是 1.5e+08。和净值轴同一套缩写, 只是不带 $。"""
+
+    PREFIX = ""
 
 
 class TimeAxis(pg.AxisItem):
@@ -189,7 +199,8 @@ class ChartWidget(QtWidgets.QWidget):
         self.p_price.setMouseEnabled(x=True, y=False)
 
         self.glw.nextRow()
-        self.p_vol = self.glw.addPlot(row=1, col=0, axisItems={"bottom": self.axis})
+        self.p_vol = self.glw.addPlot(row=1, col=0, axisItems={"bottom": self.axis,
+                                                              "left": CountAxis()})
         self.p_vol.showGrid(x=True, y=True, alpha=0.12)
         self.p_vol.getAxis("left").setWidth(62)
         self.p_vol.setMaximumHeight(110)
@@ -224,7 +235,7 @@ class ChartWidget(QtWidgets.QWidget):
         self._proxy = pg.SignalProxy(self.p_price.scene().sigMouseMoved,
                                      rateLimit=40, slot=self._on_mouse)
 
-        self.empty_label = pg.TextItem("加载中…", color=theme.TEXT_DIM, anchor=(0.5, 0.5))
+        self.empty_label = pg.TextItem(_tr("加载中…"), color=theme.TEXT_DIM, anchor=(0.5, 0.5))
         self.p_price.addItem(self.empty_label)
 
         self.p_price.sigXRangeChanged.connect(self._autoscale_y)
@@ -290,7 +301,7 @@ class ChartWidget(QtWidgets.QWidget):
         if avg_cost and avg_cost > 0:
             self.cost_line.setPos(avg_cost)
             self.cost_line.setVisible(True)
-            self.cost_line.setToolTip("持仓成本 {:.2f}".format(avg_cost))
+            self.cost_line.setToolTip(_tr("持仓成本 {:.2f}").format(avg_cost))
         else:
             self.cost_line.setVisible(False)
 
@@ -322,11 +333,11 @@ class ChartWidget(QtWidgets.QWidget):
             pct = ((c.close - c.open) / c.open * 100.0) if c.open else 0.0
             col = theme.pnl_color(c.close - c.open)
             self.readout.setText(
-                '<span style="color:{dim}">{t}</span>  '
+                _tr('<span style="color:{dim}">{t}</span>  '
                 '开 <b>{o:.2f}</b>  高 <b>{h:.2f}</b>  低 <b>{l:.2f}</b>  '
                 '收 <b style="color:{col}">{c:.2f}</b>  '
                 '<span style="color:{col}">{p:+.2f}%</span>  '
-                '量 <b>{v:,}</b>'.format(
+                '量 <b>{v:,}</b>').format(
                     dim=theme.TEXT_DIM,
                     t=dt.strftime("%Y-%m-%d %H:%M" if self._intraday else "%Y-%m-%d"),
                     o=c.open, h=c.high, l=c.low, c=c.close, p=pct, v=c.volume, col=col))

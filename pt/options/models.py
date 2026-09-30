@@ -10,6 +10,7 @@ from dataclasses import dataclass, field, asdict
 from datetime import date, datetime
 
 from .pricing import CALL, PUT
+from ..i18n import _tr
 
 OCC_RE = re.compile(r"^([A-Z0-9.\-]{1,6}?)(\d{6})([CP])(\d{8})$")
 
@@ -20,15 +21,15 @@ SELL_OPEN = "SELL_OPEN"     # 卖出开仓 (做空期权 / 义务方)
 BUY_CLOSE = "BUY_CLOSE"     # 买入平仓
 
 OPT_SIDE_CN = {
-    BUY_OPEN: "买入开仓", SELL_CLOSE: "卖出平仓",
-    SELL_OPEN: "卖出开仓", BUY_CLOSE: "买入平仓",
+    BUY_OPEN: _tr("买入开仓"), SELL_CLOSE: _tr("卖出平仓"),
+    SELL_OPEN: _tr("卖出开仓"), BUY_CLOSE: _tr("买入平仓"),
 }
 OPT_OPENING = (BUY_OPEN, SELL_OPEN)
 OPT_CLOSING = (SELL_CLOSE, BUY_CLOSE)
 OPT_BUY_SIDES = (BUY_OPEN, BUY_CLOSE)      # 花钱的一侧
 OPT_SELL_SIDES = (SELL_OPEN, SELL_CLOSE)   # 收钱的一侧
 
-RIGHT_CN = {CALL: "认购 Call", PUT: "认沽 Put"}
+RIGHT_CN = {CALL: _tr("认购 Call"), PUT: _tr("认沽 Put")}
 
 
 def build_occ(underlying: str, expiry: date, right: str, strike: float) -> str:
@@ -199,7 +200,7 @@ class OptionPosition:
         return pnl
 
     def describe(self) -> str:
-        return "{} {} {:g} {} ({}张)".format(
+        return _tr("{} {} {:g} {} ({}张)").format(
             self.underlying, self.expiry, self.strike,
             "Call" if self.right == CALL else "Put", self.qty)
 
@@ -297,9 +298,9 @@ class OptionOrder:
         bits = [OPT_SIDE_CN.get(self.side, self.side),
                 "{} {:g}{}".format(self.expiry, self.strike,
                                    "C" if self.right == CALL else "P"),
-                "{} 张".format(self.qty)]
+                _tr("{} 张").format(self.qty)]
         if self.order_type == "LIMIT":
-            bits.append("限价 {:.2f}".format(self.limit_price))
+            bits.append(_tr("限价 {:.2f}").format(self.limit_price))
         return " ".join(bits)
 
     def to_dict(self) -> dict:

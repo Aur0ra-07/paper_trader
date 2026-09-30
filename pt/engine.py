@@ -14,6 +14,7 @@ from .models import (
     PENDING, FILLED, CANCELLED, REJECTED, EXPIRED,
     DAY, GTC, OPENING_SIDES, CLOSING_SIDES, BUY_SIDES, SELL_SIDES,
 )
+from .i18n import _tr
 
 ET = ZoneInfo("America/New_York")
 MAX_CURVE_POINTS = 20000
@@ -97,54 +98,54 @@ class TradingEngine:
             return
         if self.day_trade_count() >= s.pdt_max_day_trades:
             raise RejectError(
-                "触发 PDT 规则: 账户净值低于 ${:,.0f} 时, 5 个交易日内最多 {} 次日内交易 "
-                "(当前已 {} 次)。可在【设置】中关闭该规则。".format(
+                _tr("触发 PDT 规则: 账户净值低于 ${:,.0f} 时, 5 个交易日内最多 {} 次日内交易 "
+                "(当前已 {} 次)。可在【设置】中关闭该规则。").format(
                     s.pdt_equity_threshold, s.pdt_max_day_trades, self.day_trade_count()))
 
     def validate(self, order: Order, quote: Quote, prices: dict) -> None:
         """校验订单, 不通过则抛 RejectError。"""
         acc = self.account
         if order.qty <= 0:
-            raise RejectError("股数必须为正整数")
+            raise RejectError(_tr("股数必须为正整数"))
         px = quote.tradable_price if quote else 0.0
         if px <= 0:
-            raise RejectError("拿不到 {} 的有效行情, 无法下单".format(order.symbol))
+            raise RejectError(_tr("拿不到 {} 的有效行情, 无法下单").format(order.symbol))
 
         if order.order_type in (LIMIT, STOP_LIMIT) and order.limit_price <= 0:
-            raise RejectError("限价必须大于 0")
+            raise RejectError(_tr("限价必须大于 0"))
         if order.order_type in (STOP, STOP_LIMIT) and order.stop_price <= 0:
-            raise RejectError("触发价必须大于 0")
+            raise RejectError(_tr("触发价必须大于 0"))
         if order.order_type == STOP:
             if order.side in BUY_SIDES and order.stop_price <= px:
-                raise RejectError("买入止损单的触发价需高于现价 {:.2f}".format(px))
+                raise RejectError(_tr("买入止损单的触发价需高于现价 {:.2f}").format(px))
             if order.side in SELL_SIDES and order.stop_price >= px:
-                raise RejectError("卖出止损单的触发价需低于现价 {:.2f}".format(px))
+                raise RejectError(_tr("卖出止损单的触发价需低于现价 {:.2f}").format(px))
 
         pos = self.position(order.symbol)
         if order.side == SELL:
             pending = sum(o.qty for o in acc.open_orders()
                           if o.symbol == order.symbol and o.side == SELL)
             if pos.qty <= 0:
-                raise RejectError("没有 {} 的多头持仓, 做空请用【做空】".format(order.symbol))
+                raise RejectError(_tr("没有 {} 的多头持仓, 做空请用【做空】").format(order.symbol))
             if order.qty + pending > pos.qty:
-                raise RejectError("可卖 {} 股 (持仓 {}, 挂单占用 {})".format(
+                raise RejectError(_tr("可卖 {} 股 (持仓 {}, 挂单占用 {})").format(
                     pos.qty - pending, pos.qty, pending))
         elif order.side == COVER:
             pending = sum(o.qty for o in acc.open_orders()
                           if o.symbol == order.symbol and o.side == COVER)
             if pos.qty >= 0:
-                raise RejectError("没有 {} 的空头持仓可回补".format(order.symbol))
+                raise RejectError(_tr("没有 {} 的空头持仓可回补").format(order.symbol))
             if order.qty + pending > pos.abs_qty:
-                raise RejectError("可回补 {} 股 (空头 {}, 挂单占用 {})".format(
+                raise RejectError(_tr("可回补 {} 股 (空头 {}, 挂单占用 {})").format(
                     pos.abs_qty - pending, pos.abs_qty, pending))
         elif order.side == BUY:
             if pos.qty < 0:
-                raise RejectError("{} 当前是空头持仓, 请先【回补】再买入".format(order.symbol))
+                raise RejectError(_tr("{} 当前是空头持仓, 请先【回补】再买入").format(order.symbol))
         elif order.side == SHORT:
             if acc.account_type == "CASH":
-                raise RejectError("现金账户不能做空, 请在【设置】中改为保证金账户")
+                raise RejectError(_tr("现金账户不能做空, 请在【设置】中改为保证金账户"))
             if pos.qty > 0:
-                raise RejectError("{} 当前是多头持仓, 请先【卖出】再做空".format(order.symbol))
+                raise RejectError(_tr("{} 当前是多头持仓, 请先【卖出】再做空").format(order.symbol))
 
         # 购买力: 开仓方向才占用
         if order.side in (BUY, SHORT):
@@ -154,7 +155,7 @@ class TradingEngine:
             need += comm
             avail = acc.buying_power(prices) - self.reserved_buying_power()
             if need > avail + 1e-6:
-                raise RejectError("购买力不足: 需要 ${:,.2f}, 可用 ${:,.2f}".format(need, max(avail, 0)))
+                raise RejectError(_tr("购买力不足: 需要 ${:,.2f}, 可用 ${:,.2f}").format(need, max(avail, 0)))
 
         self._check_pdt(order, prices)
 
@@ -175,20 +176,20 @@ class TradingEngine:
 
         if order.order_type == MARKET:
             if quote.market_state == "CLOSED" and not self.settings.allow_closed_market_fill:
-                order.note = "休市中, 开盘后按市价成交"
-                return True, "已提交: {} (休市挂起)".format(order.describe())
+                order.note = _tr("休市中, 开盘后按市价成交")
+                return True, _tr("已提交: {} (休市挂起)").format(order.describe())
             self._execute(order, quote.tradable_price)
             tag = "" if quote.market_state == "REGULAR" else " [{}]".format(
-                {"PRE": "盘前", "POST": "盘后", "CLOSED": "休市价"}.get(quote.market_state, ""))
-            return True, "成交: {} {} 股 @ ${:.2f}{}".format(
+                {"PRE": _tr("盘前"), "POST": _tr("盘后"), "CLOSED": _tr("休市价")}.get(quote.market_state, ""))
+            return True, _tr("成交: {} {} 股 @ ${:.2f}{}").format(
                 SIDE_CN.get(order.side, order.side), order.qty, order.fill_price, tag)
 
         # 挂单: 立刻用当前行情试一次撮合
         filled = self._try_fill(order, quote.tradable_price)
         if filled:
-            return True, "立即成交: {} {} 股 @ ${:.2f}".format(
+            return True, _tr("立即成交: {} {} 股 @ ${:.2f}").format(
                 SIDE_CN.get(order.side, order.side), order.qty, order.fill_price)
-        return True, "已挂单: {}".format(order.describe())
+        return True, _tr("已挂单: {}").format(order.describe())
 
     def cancel(self, order_id: str) -> bool:
         for o in self.account.orders:
@@ -299,7 +300,7 @@ class TradingEngine:
         for o in self.account.open_orders():
             if o.tif == DAY and et_date(o.created_at) < today:
                 o.status = EXPIRED
-                o.note = "当日有效单已过期"
+                o.note = _tr("当日有效单已过期")
                 o.updated_at = time.time()
                 n += 1
         return n

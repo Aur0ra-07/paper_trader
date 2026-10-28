@@ -28,6 +28,7 @@ LOG_PATH = os.path.join(DATA_DIR, "autotrader_log.jsonl")
 HOLD = "HOLD"
 
 SINGLE, PORTFOLIO = "single", "portfolio"
+MAX_LEVERAGE = 2.0                  # 组合模式杠杆上限 = Reg T 初始保证金
 MODE_CN = {SINGLE: _tr("单标的择时"), PORTFOLIO: _tr("核心-卫星组合")}
 
 
@@ -75,6 +76,7 @@ class AutoConfig:
     mode: str = SINGLE              # SINGLE=单标的择时 / PORTFOLIO=核心-卫星组合
     preset: str = N_("进取 · 核心65 + QQQ35")
     rebalance_band_pct: float = 2.0  # 权重偏离目标超过这么多个百分点才动手
+    leverage: float = 1.0           # 目标权重整体乘这个倍数; >1 = 融资, 现金账户强制 1
 
     def sleeves(self) -> list:
         return presets.by_name(self.preset)
@@ -191,6 +193,12 @@ class AutoTrader:
             return [Decision(_tr("组合"), HOLD, reason=plan.error, blocked=_tr("组合无法解析"))]
         self.last_plan = plan
 
+        # 杠杆: 权重整体放大, 借的钱按 margin_rate_annual 计息 (engine.accrue_margin_interest)。
+        # 上限 2 倍是 Reg T 初始保证金 —— 再高 buying_power 也给不了。
+        lev = 1.0 if acc.account_type == "CASH" else min(max(cfg.leverage, 1.0), MAX_LEVERAGE)
+        # round: 0.6 * 1.5 = 0.8999999..., 不取整的话 180 股会算成 179 股
+        targets = {s: round(w * lev, 9) for s, w in plan.targets.items()}
+
         band = max(cfg.rebalance_band_pct, 0.0) / 100.0
         today = et_date(time.time())
         trades_today = sum(1 for t in acc.trades if et_date(t.ts) == today)
@@ -200,11 +208,11 @@ class AutoTrader:
         decisions = []
         # 先卖后买: 腾出现金再建仓, 否则购买力不够会白白拦掉买单
         rows = []
-        for sym in sorted(set(plan.targets) | held):
+        for sym in sorted(set(targets) | held):
             q = quotes.get(sym)
             px = q.tradable_price if q else prices.get(sym, 0.0)
             pos = engine.position(sym)
-            tgt_w = plan.targets.get(sym, 0.0)
+            tgt_w = targets.get(sym, 0.0)
             cur_w = (pos.qty * px / equity) if equity > 0 and px > 0 else 0.0
             rows.append((sym, px, pos, tgt_w, cur_w, tgt_w - cur_w))
         rows.sort(key=lambda r: r[5])          # 差额从负到正 = 先卖后买

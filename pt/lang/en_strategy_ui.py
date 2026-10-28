@@ -204,4 +204,6 @@ EN = {
     "{}: 无行情": "{}: no quote",
     "AI 建议已执行 {} 条": "Executed {} AI suggestions",
     "部分未成功": "Some Did Not Go Through",
+    '所有目标权重乘这个倍数, 多出来的钱向券商借, 按设置里的融资年化利率每天计息。\n上限 2 倍 (Reg T); 现金账户不能融资, 会按 1 倍执行。\n实盘不模拟强平: 回撤熔断只会停止交易, 不会自动降杠杆。先在【组合】页回测同样的倍数。': "Every target weight is multiplied by this; the extra is borrowed and charged daily at the margin rate in Settings.\nMax 2x (Reg T); cash accounts can't borrow and run at 1x.\nNo forced liquidation in live mode: the drawdown halt stops trading but does not deleverage. Backtest the same multiple on the Portfolio tab first.",
+    '<br><b>{:.2f} 倍杠杆</b>：总仓位 {:.0f}% 净值，借 {:.0f}% 要付利息。': '<br><b>{:.2f}x leverage</b>: total exposure {:.0f}% of equity, borrowing {:.0f}% with interest.',
 }

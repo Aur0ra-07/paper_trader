@@ -213,6 +213,7 @@ class TradingEngine:
     def on_quotes(self, quotes: dict) -> list:
         """行情推进一步, 返回本次新成交的订单。"""
         self.expire_day_orders()
+        self.accrue_margin_interest()
         filled = []
         for o in list(self.account.open_orders()):
             q = quotes.get(o.symbol)
@@ -304,6 +305,29 @@ class TradingEngine:
                 o.updated_at = time.time()
                 n += 1
         return n
+
+    def accrue_margin_interest(self, now: float | None = None) -> float:
+        """现金为负的部分按 `margin_rate_annual` 每天结一次息, 返回这次扣的钱。
+
+        回测一直在收融资利息, 实盘以前不收 —— 等于实盘白借钱, 加杠杆的收益
+        比回测还好看, 违反不变量 2。按自然日算 (券商周末也计息), 用结息时的欠款。
+        """
+        acc = self.account
+        now = time.time() if now is None else now
+        if not acc.interest_ts:
+            acc.interest_ts = now
+            return 0.0
+        days = (et_date(now) - et_date(acc.interest_ts)).days
+        if days <= 0:
+            return 0.0
+        acc.interest_ts = now
+        rate = self.settings.margin_rate_annual
+        if acc.cash >= 0 or rate <= 0:
+            return 0.0
+        charge = round(-acc.cash * rate / 365.0 * days, 2)
+        acc.cash -= charge
+        acc.interest_paid += charge
+        return charge
 
     def record_equity(self, prices: dict, force: bool = False) -> None:
         now = time.time()

@@ -209,6 +209,9 @@ class Account:
     option_positions: dict = field(default_factory=dict)
     option_orders: list = field(default_factory=list)
     option_trades: list = field(default_factory=list)
+    # --- 融资利息 (现金为负 = 借了券商的钱, 按天计息) ---
+    interest_ts: float = 0.0           # 上次结息的时间
+    interest_paid: float = 0.0         # 累计付过的利息
 
     # -- 计算 -----------------------------------------------------------
     @property
@@ -307,6 +310,7 @@ class Account:
             "option_positions": {k: v.to_dict() for k, v in self.option_positions.items()},
             "option_orders": [o.to_dict() for o in self.option_orders],
             "option_trades": [t.to_dict() for t in self.option_trades],
+            "interest_ts": self.interest_ts, "interest_paid": self.interest_paid,
         }
 
     @classmethod
@@ -320,6 +324,8 @@ class Account:
             created_at=float(d.get("created_at", time.time())),
             watchlist=list(d.get("watchlist") or DEFAULT_WATCHLIST),
             equity_curve=list(d.get("equity_curve") or []),
+            interest_ts=float(d.get("interest_ts") or 0.0),
+            interest_paid=float(d.get("interest_paid") or 0.0),
         )
         acc.positions = {k: Position.from_dict(v) for k, v in (d.get("positions") or {}).items()}
         acc.orders = [Order.from_dict(o) for o in (d.get("orders") or [])]

@@ -1,11 +1,14 @@
 """实时行情数据源 (Yahoo Finance 公开接口, 无需 API key)。"""
 from __future__ import annotations
 
+import statistics
 import threading
 import time
 from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass, field
+from datetime import datetime
 from typing import Iterable
+from zoneinfo import ZoneInfo
 
 import requests
 from .i18n import _tr
@@ -220,7 +223,7 @@ class MarketData:
         results = chart.get("result") or []
         if not results:
             return []
-        return _parse_candles(results[0], adjusted)
+        return _parse_candles(results[0], adjusted, intraday=interval.endswith("m"))
 
     # ==================================================================
     # 数据源兜底: Yahoo 打不通时自动切国内源 (腾讯为主, 东财补缺)
@@ -341,7 +344,7 @@ class MarketData:
         results = chart.get("result") or []
         if not results:
             return []
-        out = _parse_candles(results[0], adjusted)
+        out = _parse_candles(results[0], adjusted, intraday=interval.endswith("m"))
         cache.store(symbol, interval, tag, out)
         return out
 
@@ -418,7 +421,7 @@ class MarketData:
 
 
 # ----------------------------------------------------------------------
-def _parse_candles(res: dict, adjusted: bool = True) -> list:
+def _parse_candles(res: dict, adjusted: bool = True, intraday: bool = False) -> list:
     """把 Yahoo 的原始响应转成 Candle 列表。
 
     如果响应里带了 adjclose (前复权收盘价), 就用它, 并按同样的比例缩放 O/H/L ——
@@ -459,7 +462,37 @@ def _parse_candles(res: dict, adjusted: bool = True) -> list:
             open=op, high=hi, low=lo, close=close,
             volume=int(_pick(v, i) or 0),
         ))
+    if intraday:
+        _fix_cumulative_volume(out)
     return out
+
+
+_NY = ZoneInfo("America/New_York")
+
+
+def _fix_cumulative_volume(out: list) -> None:
+    """Yahoo 分钟线的脏数据: 盘中个别 K 线的成交量是**当天累计量**, 不是这一根的量。
+
+    实测 2026-10-28 NVDA 1 分钟线 10:27~11:47 有 10 根 1700 万~2600 万股,
+    正常一根才 12 万股, 这些数和开盘以来累计成交量的比值都在 1.00~1.05。
+    SPY / AAPL 的 1 分钟、5 分钟线也有, 每天都会冒几根。
+
+    识别: 常规时段已经走了至少 6 根, 这一根的量却 ≥ 当天前面所有根加起来的 80%。
+    开盘 / 收盘集合竞价那两根虽然大, 但远到不了这个程度 (收盘那根约占全天 20%)。
+    替换成当天前面正常 K 线量的中位数。成交量只用来画柱子, 不进任何交易逻辑。
+    """
+    day, cum, clean = None, 0, []
+    for c in out:
+        t = datetime.fromtimestamp(c.ts, _NY)
+        if not ((9, 30) <= (t.hour, t.minute) < (16, 0)):
+            continue
+        if t.date() != day:
+            day, cum, clean = t.date(), 0, []
+        if len(clean) >= 6 and cum > 0 and c.volume >= 0.8 * cum:
+            c.volume = int(statistics.median(clean))
+        else:
+            clean.append(c.volume)
+        cum += c.volume
 
 
 def _f(v) -> float:

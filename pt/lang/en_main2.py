@@ -82,7 +82,6 @@ EN = {
     "无数据": "No data",
     "没有找到匹配的标的": "No matching symbols",
     "已加入 {} 只新标的, 自选股共 {} 只": "Added {} new symbols; the watchlist now has {}",
-    "融资中": "On margin",
     "保证金 2x": "Margin 2x",
     "{} 个持仓": "{} positions",
     "最高 {:.2f}   最低 {:.2f}   昨收 {:.2f}   成交量 {:,}":
@@ -166,4 +165,5 @@ EN = {
     "行情拉取失败, 正在重试…": "Quote fetch failed, retrying…",
     "行情异常: {}": "Market data error: {}",
     "K线加载失败 {}: {}": "Failed to load candles for {}: {}",
+    '融资中 · 已付利息 ${:,.2f}': 'On margin · interest paid ${:,.2f}',
 }

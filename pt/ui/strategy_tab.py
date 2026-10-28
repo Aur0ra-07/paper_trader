@@ -937,6 +937,20 @@ class StrategyTab(QtWidgets.QWidget):
             "设 0 会每天产生碎单; 太大则长期偏离目标。2pp 是个合理起点。"))
         brow2.addWidget(self.auto_band)
         pf.addLayout(brow2)
+        brow3 = QtWidgets.QHBoxLayout()
+        brow3.addWidget(QtWidgets.QLabel(_tr("融资杠杆")))
+        self.auto_lev = QtWidgets.QDoubleSpinBox()
+        self.auto_lev.setRange(1.0, auto.MAX_LEVERAGE)
+        self.auto_lev.setSingleStep(0.25)
+        self.auto_lev.setValue(1.0)
+        self.auto_lev.setSuffix(_tr(" 倍"))
+        self.auto_lev.setToolTip(
+            _tr("所有目标权重乘这个倍数, 多出来的钱向券商借, 按设置里的融资年化利率每天计息。\n"
+            "上限 2 倍 (Reg T); 现金账户不能融资, 会按 1 倍执行。\n"
+            "实盘不模拟强平: 回撤熔断只会停止交易, 不会自动降杠杆。先在【组合】页回测同样的倍数。"))
+        self.auto_lev.valueChanged.connect(self._preview_portfolio)
+        brow3.addWidget(self.auto_lev)
+        pf.addLayout(brow3)
         self.auto_pf_note = QtWidgets.QLabel("")
         self.auto_pf_note.setObjectName("Dim")
         self.auto_pf_note.setWordWrap(True)
@@ -1091,12 +1105,18 @@ class StrategyTab(QtWidgets.QWidget):
             self.auto_pf_note.setText("")
             return
         syms = sorted({x for sl in sleeves for x in sl.symbols})
+        lev = self.auto_lev.value() if hasattr(self, "auto_lev") else 1.0
+        extra = ""
+        if lev > 1.0:
+            extra = _tr("<br><b>{:.2f} 倍杠杆</b>：总仓位 {:.0f}% 净值，借 {:.0f}% 要付利息。").format(
+                lev, lev * 100, (lev - 1) * 100)
         self.auto_pf_note.setText(
             _tr("{} 个支柱 · 需要盯 {} 只标的<br>{}<br>"
             "<b>仓位由权重决定</b>，单票上限 / 持仓数 / 止损在这个模式下不生效；"
             "风控靠分散和回撤熔断。").format(
                 len(sleeves), len(syms),
-                "　".join("{} {:.0f}%".format(sl.name, sl.weight * 100) for sl in sleeves)))
+                "　".join("{} {:.0f}%".format(sl.name, sl.weight * 100 * lev) for sl in sleeves))
+            + extra)
 
     def _selected_symbols(self) -> list:
         return [self.auto_symbols.item(i).text() for i in range(self.auto_symbols.count())
@@ -1109,6 +1129,7 @@ class StrategyTab(QtWidgets.QWidget):
         pi = self.auto_preset.findData(c.preset)
         self.auto_preset.setCurrentIndex(max(pi, 0))
         self.auto_band.setValue(c.rebalance_band_pct)
+        self.auto_lev.setValue(c.leverage)
         idx = self.auto_strategy.findData(c.strategy_key)
         self.auto_strategy.setCurrentIndex(max(idx, 0))
         self.auto_params.set_strategy(c.strategy_key, c.params)
@@ -1132,6 +1153,7 @@ class StrategyTab(QtWidgets.QWidget):
         c.mode = self.auto_mode.currentData()
         c.preset = self.auto_preset.currentData()
         c.rebalance_band_pct = self.auto_band.value()
+        c.leverage = self.auto_lev.value()
         c.strategy_key = self.auto_strategy.currentData()
         c.params = self.auto_params.values()
         c.symbols = self._selected_symbols()

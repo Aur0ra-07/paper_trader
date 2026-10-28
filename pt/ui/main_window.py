@@ -852,7 +852,8 @@ class MainWindow(QtWidgets.QMainWindow):
         self.tiles["equity"].set_value(theme.money(eq), theme.pnl_color(eq - acc.initial_cash))
         self.tiles["cash"].set_value(theme.money(acc.cash),
                                      theme.RED if acc.cash < 0 else None,
-                                     _tr("融资中") if acc.cash < 0 else "")
+                                     _tr("融资中 · 已付利息 ${:,.2f}").format(acc.interest_paid)
+                                     if acc.cash < 0 else "")
         self.tiles["bp"].set_value(theme.money(acc.buying_power(p)), None,
                                    _tr("现金账户") if acc.account_type == "CASH" else _tr("保证金 2x"))
         self.tiles["mv"].set_value(theme.money(mv), None,

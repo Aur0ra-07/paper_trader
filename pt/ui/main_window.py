@@ -868,9 +868,11 @@ class MainWindow(QtWidgets.QMainWindow):
         for sym in self.account.watchlist:
             q = self.quotes.get(sym)
             if q:
+                # 价格和涨跌幅必须是同一对: 常规价配「较昨收」。以前这里放的是盘后价,
+                # 旁边却是常规时段的涨跌幅, 两个数对不上。盘前盘后价看报价页顶部那行。
                 col = theme.pnl_color(q.change)
                 rows.append([cell(sym, theme.TEXT, LEFT, bold=True),
-                             cell("{:.2f}".format(q.tradable_price), col, RIGHT),
+                             cell("{:.2f}".format(q.price or q.tradable_price), col, RIGHT),
                              cell(theme.signed_pct(q.change_pct), col, RIGHT)])
             else:
                 rows.append([cell(sym, theme.TEXT, LEFT, bold=True),
@@ -907,7 +909,8 @@ class MainWindow(QtWidgets.QMainWindow):
         if q.market_state in ("PRE", "POST") and abs(q.ext_price - q.price) > 1e-9:
             tag = _tr("盘前") if q.market_state == "PRE" else _tr("盘后")
             ecol = theme.pnl_color(q.ext_price - q.price)
-            self.lab_ext.setText('{} {:.2f} <span style="color:{}">{}</span>'.format(
+            # 盘前盘后的涨跌幅一律较 16:00 收盘价 (和 Yahoo 页面同一口径), 写明白免得误会
+            self.lab_ext.setText(_tr('{} {:.2f} <span style="color:{}">{}</span> (较收盘)').format(
                 tag, q.ext_price, ecol, theme.signed_pct(q.ext_change_pct)))
         else:
             self.lab_ext.setText("")

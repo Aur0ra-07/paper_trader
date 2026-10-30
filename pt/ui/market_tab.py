@@ -57,7 +57,7 @@ class ListWorker(QtCore.QThread):
                         if not q:
                             continue
                         rows.append({"symbol": q.symbol, "name": q.name,
-                                     "price": q.tradable_price,
+                                     "price": q.price or q.tradable_price,   # 和涨跌幅同一口径
                                      "change_pct": q.change_pct,
                                      "volume": q.volume, "market_cap": 0})
                     rows.sort(key=lambda r: -r["change_pct"])

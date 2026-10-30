@@ -437,8 +437,10 @@ class EastMoneySource:
                                   volume=int(float(p[5]))))
             except (ValueError, IndexError):
                 continue
-        # 后复权价要换算回真实价, 否则 AAPL 会显示成 49847 而不是 332
-        if out and not minute:
+        # 后复权价要换算回真实价, 否则 AAPL 会显示成 49847 而不是 332。
+        # 分钟线也要换: 以前跳过了, 实测 2026-10-29 GOOGL 5 分 / 60 分线是 11436 不是 283
+        # (只有 1 分线东财给的本来就是真实价, 换算系数算出来是 1, 不受影响)
+        if out:
             f = self._scale_to_real(symbol, interval, out[-1].close)
             if f and abs(f - 1.0) > 1e-9:
                 out = [Candle(ts=c.ts, open=c.open * f, high=c.high * f,

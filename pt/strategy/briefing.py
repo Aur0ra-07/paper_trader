@@ -186,8 +186,12 @@ def export_briefing(account, engine, quotes: dict, prices: dict,
     for sym in sorted(quotes):
         q = quotes[sym]
         s = _snapshot_indicators(candles_by_symbol.get(sym) or [])
+        # 现价是下单会成交的价 (盘前盘后用延伸价), 涨跌幅就得用同一个价较昨收算,
+        # 不能拿常规时段的 change_pct 配盘后价
+        px = q.tradable_price
+        chg = (px / q.prev_close - 1) * 100 if q.prev_close else 0.0
         A("| {} | {:.2f} | {:+.2f}% | {} | {} | {} | {} | {} | {} | {} | {} | {} |".format(
-            sym, q.tradable_price, q.change_pct,
+            sym, px, chg,
             _fmt(s.get("rsi14"), "", 1),
             _fmt(s.get("vs_ma20"), "%", 1), _fmt(s.get("vs_ma50"), "%", 1),
             _fmt(s.get("vs_ma200"), "%", 1), _fmt(s.get("boll_pos"), "", 0),

@@ -166,4 +166,5 @@ EN = {
     "行情异常: {}": "Market data error: {}",
     "K线加载失败 {}: {}": "Failed to load candles for {}: {}",
     '融资中 · 已付利息 ${:,.2f}': 'On margin · interest paid ${:,.2f}',
+    '{} {:.2f} <span style="color:{}">{}</span> (较收盘)': '{} {:.2f} <span style="color:{}">{}</span> (vs close)',
 }

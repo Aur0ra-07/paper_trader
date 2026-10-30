@@ -223,7 +223,7 @@ class MarketData:
         results = chart.get("result") or []
         if not results:
             return []
-        return _parse_candles(results[0], adjusted, intraday=interval.endswith("m"))
+        return _parse_candles(results[0], adjusted, interval)
 
     # ==================================================================
     # 数据源兜底: Yahoo 打不通时自动切国内源 (腾讯为主, 东财补缺)
@@ -344,7 +344,7 @@ class MarketData:
         results = chart.get("result") or []
         if not results:
             return []
-        out = _parse_candles(results[0], adjusted, intraday=interval.endswith("m"))
+        out = _parse_candles(results[0], adjusted, interval)
         cache.store(symbol, interval, tag, out)
         return out
 
@@ -421,13 +421,25 @@ class MarketData:
 
 
 # ----------------------------------------------------------------------
-def _parse_candles(res: dict, adjusted: bool = True, intraday: bool = False) -> list:
+def _parse_candles(res: dict, adjusted: bool = True, interval: str = "1d") -> list:
     """把 Yahoo 的原始响应转成 Candle 列表。
 
     如果响应里带了 adjclose (前复权收盘价), 就用它, 并按同样的比例缩放 O/H/L ——
     否则像 TLT(年化息 4%)、XLU 这种高股息标的的长期回测会被严重低估:
     实测 TLT 2005-2026 不复权 -9%, 复权后 +85%。
+
+    当天那根日线在收盘后一段时间里 close 是空的 (Yahoo 还没定稿)。以前这里
+    拿上一根的收盘价顶上, 2026-10-29 GOOGL 跌 12.6% 收 283.82, 图上却是一根
+    开 286.77、收 324.89 (昨收) 的假阳线。现在最后一根缺 close 就用报价里的
+    regularMarketPrice —— 和报价页同一个数。
     """
+    intraday = interval.endswith("m")
+    meta = res.get("meta") or {}
+    live = _f(meta.get("regularMarketPrice"))
+    live_ts = _f(meta.get("regularMarketTime"))
+    # 只有最后一根就是报价所在的那一天/那一周才能这么补 —— 历史区间的最后一根缺值
+    # 拿今天的价去填就是错的
+    span = {"1wk": 8, "1mo": 32}.get(interval, 1) * 86400
     stamps = res.get("timestamp") or []
     ind = res.get("indicators") or {}
     q = (ind.get("quote") or [{}])[0]
@@ -442,6 +454,12 @@ def _parse_candles(res: dict, adjusted: bool = True, intraday: bool = False) -> 
     last_close = None
     for i, t in enumerate(stamps):
         close = _pick(c, i)
+        vol = _pick(v, i)
+        if (close is None and not intraday and i == len(stamps) - 1 and live > 0
+                and 0 <= live_ts - t < span):
+            close = live
+            if vol is None:
+                vol = meta.get("regularMarketVolume")
         if close is None:
             close = last_close
         if close is None:
@@ -449,8 +467,8 @@ def _parse_candles(res: dict, adjusted: bool = True, intraday: bool = False) -> 
         last_close = close
         op, hi, lo = _pick(o, i), _pick(h, i), _pick(l, i)
         op = op if op is not None else close
-        hi = hi if hi is not None else close
-        lo = lo if lo is not None else close
+        hi = max(hi, close) if hi is not None else close
+        lo = min(lo, close) if lo is not None else close
 
         a = _pick(adj, i)
         if a is not None and close > 0:
@@ -460,11 +478,31 @@ def _parse_candles(res: dict, adjusted: bool = True, intraday: bool = False) -> 
         out.append(Candle(
             ts=int(t),
             open=op, high=hi, low=lo, close=close,
-            volume=int(_pick(v, i) or 0),
+            volume=int(vol or 0),
         ))
     if intraday:
         _fix_cumulative_volume(out)
+    if interval == "1wk":
+        _merge_live_week(out)
     return out
+
+
+def _merge_live_week(out: list) -> None:
+    """周线的本周会被拆成两根: 周一开头的那根 (只到昨天) + 一根当天的实时 K 线。
+
+    实测 2026-10-29 GOOGL: 10-26 那根收 324.89, 后面又跟一根 10-29 收 283.82,
+    图上一周出现两根。合并成一根: 开盘取前一根, 收盘取后一根, 高低取两者极值。
+    """
+    if len(out) < 2:
+        return
+    a, b = out[-2], out[-1]
+    wa = datetime.fromtimestamp(a.ts, _NY).isocalendar()[:2]
+    wb = datetime.fromtimestamp(b.ts, _NY).isocalendar()[:2]
+    if wa != wb:
+        return
+    out[-2] = Candle(ts=a.ts, open=a.open, high=max(a.high, b.high), low=min(a.low, b.low),
+                     close=b.close, volume=a.volume + b.volume)
+    out.pop()
 
 
 _NY = ZoneInfo("America/New_York")

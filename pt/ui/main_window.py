@@ -27,7 +27,7 @@ from .market_tab import MarketBrowser
 from .options_tab import OptionsTab
 from .strategy_tab import StrategyTab
 from .account_dialog import AccountManagerDialog
-from .panels import (Card, StatTile, EquityCurveWidget,
+from .panels import (Card, ElideLabel, StatTile, EquityCurveWidget,
                      make_table, cell, fill_table, LEFT, RIGHT, CENTER)
 from .workers import QuoteWorker, CandleWorker, SearchWorker
 from .. import i18n
@@ -206,7 +206,7 @@ class MainWindow(QtWidgets.QMainWindow):
         split.addWidget(self._build_watch_panel())
         split.addWidget(self._build_chart_panel())
         split.addWidget(self._build_ticket_panel())
-        split.setSizes([280, 900, 350])
+        split.setSizes([340, 840, 350])
         split.setStretchFactor(1, 1)
         return split
 
@@ -222,7 +222,8 @@ class MainWindow(QtWidgets.QMainWindow):
         card.vbox.addWidget(self.search_box)
 
         self.watch_stack = QtWidgets.QStackedWidget()
-        self.watch_table = make_table([_tr("代码"), _tr("最新价"), _tr("涨跌幅")], stretch_col=0)
+        self.watch_table = make_table([_tr("代码"), _tr("最新价"), _tr("涨跌幅"), _tr("盘前/盘后")],
+                                      stretch_col=0)
         self.watch_table.itemSelectionChanged.connect(self._on_watch_selected)
         self.watch_table.setContextMenuPolicy(QtCore.Qt.ContextMenuPolicy.CustomContextMenu)
         self.watch_table.customContextMenuRequested.connect(self._watch_menu)
@@ -256,7 +257,7 @@ class MainWindow(QtWidgets.QMainWindow):
         left.setSpacing(0)
         self.lab_symbol = QtWidgets.QLabel("—")
         self.lab_symbol.setStyleSheet("font-size:19px; font-weight:700;")
-        self.lab_name = QtWidgets.QLabel("")
+        self.lab_name = ElideLabel("")     # 公司全名可能很长 (TSM), 不能让它撑宽图表区
         self.lab_name.setObjectName("Dim")
         left.addWidget(self.lab_symbol)
         left.addWidget(self.lab_name)
@@ -277,7 +278,7 @@ class MainWindow(QtWidgets.QMainWindow):
         head.addLayout(mid)
 
         head.addStretch(1)
-        self.lab_ohlc = QtWidgets.QLabel("")
+        self.lab_ohlc = ElideLabel("")     # 韩元/日元标的数字很长, 同样不能撑宽
         self.lab_ohlc.setObjectName("Dim")
         self.lab_ohlc.setAlignment(RIGHT)
         head.addWidget(self.lab_ohlc)
@@ -868,24 +869,38 @@ class MainWindow(QtWidgets.QMainWindow):
         for sym in self.account.watchlist:
             q = self.quotes.get(sym)
             if q:
-                # 价格和涨跌幅必须是同一对: 常规价配「较昨收」。以前这里放的是盘后价,
-                # 旁边却是常规时段的涨跌幅, 两个数对不上。盘前盘后价看报价页顶部那行。
+                # 价格和涨跌幅必须是同一对: 常规价配「较昨收」, 盘前盘后价单独一列配「较收盘」。
+                # 以前盘后价和常规涨跌幅挤在一起, 两个数对不上。
                 col = theme.pnl_color(q.change)
+                if q.ext_session:
+                    ext = cell("{:.2f} {}".format(q.ext_price, theme.signed_pct(q.ext_change_pct)),
+                               theme.pnl_color(q.ext_price - q.price), RIGHT)
+                    ext.setToolTip(_tr("{} {:.2f}, 较 16:00 收盘 {}").format(
+                        self._ext_tag(q), q.ext_price, theme.signed_pct(q.ext_change_pct)))
+                else:
+                    ext = cell("", None, RIGHT)
                 rows.append([cell(sym, theme.TEXT, LEFT, bold=True),
                              cell("{:.2f}".format(q.price or q.tradable_price), col, RIGHT),
-                             cell(theme.signed_pct(q.change_pct), col, RIGHT)])
+                             cell(theme.signed_pct(q.change_pct), col, RIGHT), ext])
             else:
                 rows.append([cell(sym, theme.TEXT, LEFT, bold=True),
                              cell("—", theme.TEXT_DIM, RIGHT),
-                             cell("—", theme.TEXT_DIM, RIGHT)])
+                             cell("—", theme.TEXT_DIM, RIGHT),
+                             cell("", None, RIGHT)])
         prev = self.watch_table.currentRow()
         self.watch_table.blockSignals(True)
         fill_table(self.watch_table, rows)
+        # 常规时段没有延伸价, 那一列空着只占地方
+        self.watch_table.setColumnHidden(3, not any(r[3].text() for r in rows))
         if self.current_symbol in self.account.watchlist:
             self.watch_table.selectRow(self.account.watchlist.index(self.current_symbol))
         elif 0 <= prev < len(rows):
             self.watch_table.selectRow(prev)
         self.watch_table.blockSignals(False)
+
+    @staticmethod
+    def _ext_tag(q) -> str:
+        return {"PRE": _tr("盘前"), "POST": _tr("盘后"), "OVERNIGHT": _tr("夜盘")}.get(q.ext_session, "")
 
     def _refresh_quote_header(self) -> None:
         sym = self.current_symbol
@@ -906,8 +921,8 @@ class MainWindow(QtWidgets.QMainWindow):
         self.lab_change.setText("{}  {}".format(theme.signed_money(q.change),
                                                 theme.signed_pct(q.change_pct)))
         self.lab_change.setStyleSheet("color: {};".format(col))
-        if q.market_state in ("PRE", "POST") and abs(q.ext_price - q.price) > 1e-9:
-            tag = _tr("盘前") if q.market_state == "PRE" else _tr("盘后")
+        if q.ext_session:
+            tag = self._ext_tag(q)
             ecol = theme.pnl_color(q.ext_price - q.price)
             # 盘前盘后的涨跌幅一律较 16:00 收盘价 (和 Yahoo 页面同一口径), 写明白免得误会
             self.lab_ext.setText(_tr('{} {:.2f} <span style="color:{}">{}</span> (较收盘)').format(

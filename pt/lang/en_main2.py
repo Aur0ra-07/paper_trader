@@ -167,4 +167,7 @@ EN = {
     "K线加载失败 {}: {}": "Failed to load candles for {}: {}",
     '融资中 · 已付利息 ${:,.2f}': 'On margin · interest paid ${:,.2f}',
     '{} {:.2f} <span style="color:{}">{}</span> (较收盘)': '{} {:.2f} <span style="color:{}">{}</span> (vs close)',
+    '夜盘': 'Overnight',
+    '盘前/盘后': 'Ext. hours',
+    '{} {:.2f}, 较 16:00 收盘 {}': '{} {:.2f}, {} vs 4:00 PM close',
 }

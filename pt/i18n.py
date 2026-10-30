@@ -30,7 +30,8 @@ def _load_lang() -> str:
         return env
     try:
         with open(SETTINGS_PATH, encoding="utf-8") as f:
-            v = json.load(f).get("language", DEFAULT)
+            # 设置文件在但没有 language: 英文界面之前的老版本, 一直是中文 (见 config.Settings.load)
+            v = json.load(f).get("language", "zh")
     except (OSError, ValueError, AttributeError):
         v = DEFAULT
     return v if v in dict(LANGS) else DEFAULT

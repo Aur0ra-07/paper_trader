@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import json
 import os
+import time
 from dataclasses import dataclass, asdict, field
 
 import sys
@@ -29,20 +30,66 @@ def _app_dir() -> str:
     except OSError:                       # 极端情况退回 exe 旁边, 总比不能用强
         return os.path.dirname(os.path.abspath(sys.executable))
 
-    # 从旧位置 (exe 旁边) 迁移一次
+    # 从旧位置 (exe 旁边) 迁移
     old = os.path.join(os.path.dirname(os.path.abspath(sys.executable)), "data")
     new = os.path.join(home, "data")
-    if os.path.isdir(old) and not os.path.exists(new):
+    if os.path.isdir(old):
         try:
-            import shutil
-            shutil.copytree(old, new)
-            with open(os.path.join(old, "已搬家.txt"), "w", encoding="utf-8") as f:
-                f.write("账户数据已搬到:\n%s\n\n"
-                        "放在这里是为了让它不会被新版本覆盖掉。\n"
-                        "这个文件夹可以删。\n" % new)
+            _migrate(old, new)
         except OSError:
             pass
     return home
+
+
+def _migrate(old: str, new: str) -> None:
+    """把 exe 旁边的旧数据搬到新位置。新位置已经有数据时按文件**合并**, 不是跳过。
+
+    以前只在新位置不存在时才搬。2026-10-29 踩坑: 用户 9/17 试过一次新版,
+    在新位置留下一个空账户; 之后一直用老版 exe, 真账户 (17 笔成交) 只在
+    exe 旁边。直接换新版会打开那个空账户 —— 看上去就是数据全没了。
+
+    规则: 旧位置的账户文件比新位置的新 (或新位置没有) 才拷过去, 被覆盖的那份
+    先存进 backups/。用新版之后新位置一直比旧的新, 以后启动就什么都不做。
+    """
+    import shutil
+    acc_old, acc_new = os.path.join(old, "accounts"), os.path.join(new, "accounts")
+    if not os.path.exists(new):
+        shutil.copytree(old, new, ignore=shutil.ignore_patterns("cache", "已搬家.txt"))
+        moved = True
+    else:
+        moved = False
+        os.makedirs(acc_new, exist_ok=True)
+        for fn in sorted(os.listdir(acc_old)) if os.path.isdir(acc_old) else []:
+            if not fn.endswith(".json"):
+                continue
+            src, dst = os.path.join(acc_old, fn), os.path.join(acc_new, fn)
+            if os.path.exists(dst) and os.path.getmtime(dst) >= os.path.getmtime(src):
+                continue
+            if os.path.exists(dst):
+                bk = os.path.join(new, "backups")
+                os.makedirs(bk, exist_ok=True)
+                shutil.copy2(dst, os.path.join(bk, "%s_%s_before-migrate.json" % (
+                    fn[:-5], time.strftime("%Y%m%d-%H%M%S"))))
+            shutil.copy2(src, dst)
+            moved = True
+        if moved:
+            # 旧版正在用的那个账户, 换新版后也应该还是它; 设置以用户真正在用的那份为准
+            for fn in ("active.txt", "settings.json"):
+                src = os.path.join(old, fn)
+                if os.path.exists(src):
+                    shutil.copy2(src, os.path.join(new, fn))
+            bo = os.path.join(old, "backups")
+            if os.path.isdir(bo):
+                bn = os.path.join(new, "backups")
+                os.makedirs(bn, exist_ok=True)
+                for fn in os.listdir(bo):
+                    if not os.path.exists(os.path.join(bn, fn)):
+                        shutil.copy2(os.path.join(bo, fn), os.path.join(bn, fn))
+    if moved:
+        with open(os.path.join(old, "已搬家.txt"), "w", encoding="utf-8") as f:
+            f.write("账户数据已搬到:\n%s\n\n"
+                    "放在这里是为了让它不会被新版本覆盖掉。\n"
+                    "这个文件夹先别删 —— 留着当一份备份。\n" % new)
 
 
 APP_DIR = _app_dir()
@@ -109,7 +156,12 @@ class Settings:
         except (OSError, json.JSONDecodeError):
             return cls()
         known = {f.name for f in cls.__dataclass_fields__.values()}
-        return cls(**{k: v for k, v in raw.items() if k in known})
+        s = cls(**{k: v for k, v in raw.items() if k in known})
+        if "language" not in raw:
+            # 没有这一项 = 英文界面出现之前的老版本存的, 那时只有中文。
+            # 按默认值 en 存回去的话, 老用户换新版会突然变成看不懂的英文
+            s.language = "zh"
+        return s
 
     # ------------------------------------------------------------------
     def commission(self, shares: int, notional: float) -> float:

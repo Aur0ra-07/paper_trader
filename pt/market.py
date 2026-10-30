@@ -50,9 +50,32 @@ class Quote:
         return (self.ext_price - self.price) / self.price * 100.0
 
     @property
+    def ext_session(self) -> str:
+        """延伸价属于哪个时段: PRE / POST / OVERNIGHT, 没有延伸价就是空串。
+
+        美东 20:00 以后 market_state 是 CLOSED, 但 Yahoo 的 fulldayPrice 还在跟着
+        夜盘 (20:00-次日 04:00) 走 —— 以前这段时间一律不显示, 收盘后什么都看不到。
+        周末 / 假日 CLOSED 时显示的是最后一个盘后/夜盘价, 记作 POST。
+        """
+        if self.market_state == "REGULAR" or self.ext_price <= 0 or not self.price:
+            return ""
+        if abs(self.ext_price - self.price) < 1e-9:
+            return ""
+        if self.market_state in ("PRE", "POST"):
+            return self.market_state
+        now = datetime.now(_NY)
+        if now.weekday() < 5 and (now.hour >= 20 or now.hour < 4):
+            return "OVERNIGHT"
+        return "POST"
+
+    @property
     def tradable_price(self) -> float:
-        """撮合用价格: 盘前盘后用延伸价, 否则用常规价。"""
-        if self.market_state in ("PRE", "POST") and self.ext_price > 0:
+        """撮合用价格: 盘前 / 盘后 / 夜盘用延伸价, 否则用常规价。
+
+        夜盘以前不算 —— 20:00 以后休市挂单按 16:00 收盘价成交, 而界面上显示的
+        已经是夜盘价, 等于拿一个过时的价格成交。
+        """
+        if self.ext_session:
             return self.ext_price
         return self.price or self.ext_price
 

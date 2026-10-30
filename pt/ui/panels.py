@@ -11,6 +11,45 @@ CENTER = QtCore.Qt.AlignmentFlag.AlignCenter
 LEFT = QtCore.Qt.AlignmentFlag.AlignLeft | QtCore.Qt.AlignmentFlag.AlignVCenter
 
 
+class ElideLabel(QtWidgets.QLabel):
+    """放不下就截成「…」的单行纯文本标签, 全文在悬停提示里。
+
+    普通 QLabel 的最小宽度 = 整段文字的宽度。报价页顶部那行放的是公司全名,
+    点到 TSM (Taiwan Semiconductor Manufacturing Company Limited) 时这一行
+    把中间图表区的最小宽度撑大, 分割器只好把左右两栏挤窄, 而且点回别的股票
+    也不会恢复 —— 看起来就是「窗口比例莫名其妙变了」。
+    """
+
+    def __init__(self, text: str = "", parent=None):
+        super().__init__(parent)
+        self._full = ""
+        self.setText(text)
+
+    def setText(self, text: str) -> None:
+        self._full = text or ""
+        self.setToolTip(self._full)
+        self._elide()
+        self.updateGeometry()
+
+    def text(self) -> str:
+        return self._full
+
+    def sizeHint(self) -> QtCore.QSize:
+        fm = self.fontMetrics()
+        return QtCore.QSize(fm.horizontalAdvance(self._full) + 2, super().sizeHint().height())
+
+    def minimumSizeHint(self) -> QtCore.QSize:
+        return QtCore.QSize(40, super().minimumSizeHint().height())
+
+    def resizeEvent(self, e) -> None:
+        super().resizeEvent(e)
+        self._elide()
+
+    def _elide(self) -> None:
+        super().setText(self.fontMetrics().elidedText(
+            self._full, QtCore.Qt.TextElideMode.ElideRight, max(self.width(), 1)))
+
+
 class Card(QtWidgets.QFrame):
     def __init__(self, title: str = "", parent=None):
         super().__init__(parent)
